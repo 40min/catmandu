@@ -1,0 +1,141 @@
+# Catmandu
+
+Catmandu is a modular and extensible Telegram bot built on a core system that handles the primary interactions with the Telegram API, and a pluggable module system for adding new features. These modules, called "cattackles," can be developed in any language and communicate with the core system over a standardized protocol.
+
+## About The Project
+
+The core of Catmandu is a Python application using FastAPI that runs a continuous polling process to fetch updates from Telegram. It uses a dynamic registry to discover and manage available cattackles, and a message router to delegate commands to the appropriate module. This architecture allows for a clean separation of concerns, making it easy to develop and maintain new functionalities without altering the core application.
+
+Key features:
+- **Modular Architecture:** Easily add new features through independent "cattackle" modules.
+- **Language Agnostic:** Cattackles can be written in any programming language.
+- **Dynamic Discovery:** New cattackles are discovered automatically at startup or via an admin endpoint.
+- **Centralized Core:** A robust core handles all the boilerplate of Telegram communication.
+
+### Architecture
+
+The system is designed with a central core process that polls for Telegram updates and a set of external cattackle processes that provide the actual bot functionalities.
+
+```mermaid
+graph TD
+    subgraph User
+        Telegram_User
+    end
+
+    subgraph External
+        Telegram_API[Telegram Bot API]
+    end
+
+    subgraph Catmandu Core Process
+        direction LR
+        subgraph "Background Tasks"
+            Telegram_Poller[Telegram Poller]
+        end
+        subgraph "Web Server"
+            FastAPI_Server[FastAPI Server<br>/health, /cattackles]
+        end
+        
+        Telegram_Poller --> MessageRouter{Message Router}
+        MessageRouter --> CattackleRegistry[Cattackle Registry<br>(In-Memory Cache)]
+        MessageRouter --> MCP_Client_Manager[MCP Client Manager]
+    end
+
+    subgraph Cattackle Processes
+        direction TB
+        Cattackle_Echo[Echo Cattackle (Python)<br>FastMCP Server]
+        Cattackle_Weather[Weather Cattackle (JS)<br>FastMCP Server]
+        Cattackle_Other[...]
+    end
+
+    Telegram_User --sends /command--> Telegram_API
+    Telegram_Poller --polls for updates--> Telegram_API
+    MCP_Client_Manager --MCP Call--> Cattackle_Echo
+    MCP_Client_Manager --MCP Call--> Cattackle_Weather
+    MCP_Client_Manager --MCP Call--> Cattackle_Other
+```
+*Diagram: Flow of a user command through the Catmandu polling system.*
+
+For more detailed information, please refer to the documents in the `architecture/` directory.
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.12
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Installation
+
+1. Clone the repo
+   ```sh
+   git clone https://github.com/your_username/catmandu.git
+   ```
+2. Install Python packages
+   ```sh
+   uv pip install -r requirements.txt
+   ```
+
+## Usage
+
+1.  **Set up environment variables:**
+
+    Create a `.env` file in the root directory and add your Telegram bot token:
+    ```
+    TELEGRAM_BOT_TOKEN=your_bot_token
+    ```
+
+2.  **Run the main application:**
+    ```sh
+    uvicorn main:app --reload
+    ```
+3.  **Run a cattackle:**
+
+    Each cattackle is a separate process. To run the example "echo" cattackle:
+    ```sh
+    cd cattackles/echo
+    # Install its dependencies
+    uv pip install -r requirements.txt 
+    # Run the cattackle server
+    python src/server.py
+    ```
+
+## Cattackles (Modules)
+
+A cattackle is an independent, pluggable module that provides specific features. To be discovered by the core system, a cattackle must have a `cattackle.toml` manifest file in its root directory.
+
+Example `cattackle.toml`:
+```toml
+[cattackle]
+name = "my-cattackle"
+version = "1.0.0"
+description = "A brief description of the cattackle."
+
+[cattackle.commands]
+mycommand = { description = "Description of mycommand" }
+
+[cattackle.mcp]
+transport = "stdio" # "stdio", "websocket", or "http"
+```
+For more details, see the [Cattackle Specification](architecture/spec/ARCH-cattackle-spec-v1.md).
+
+## API Endpoints
+
+The core application exposes a few administrative endpoints:
+
+-   `GET /health`: Returns the operational status of the service.
+-   `GET /cattackles`: Returns a list of all discovered cattackles and their configurations.
+-   `POST /admin/reload`: Triggers a re-scan of the cattackles directory to discover new modules.
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
