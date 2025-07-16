@@ -86,7 +86,7 @@ For more detailed information, please refer to the documents in the `architectur
 
 2.  **Run the main application:**
     ```sh
-    uvicorn main:app --reload
+    uvicorn catmandu.main:app --reload
     ```
 3.  **Run a cattackle:**
 
