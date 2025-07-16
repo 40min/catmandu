@@ -34,7 +34,7 @@ graph TD
         subgraph "Web Server"
             FastAPI_Server[FastAPI Server<br>/health, /cattackles]
         end
-        
+
         Telegram_Poller --> MessageRouter{Message Router}
         MessageRouter --> CattackleRegistry[Cattackle Registry<br>In-Memory Cache]
         MessageRouter --> MCP_Client_Manager[MCP Client Manager]
@@ -72,7 +72,7 @@ For more detailed information, please refer to the documents in the `architectur
    ```
 2. Install Python packages
    ```sh
-   uv pip install -r requirements.txt
+   uv sync
    ```
 
 ## Usage
@@ -94,7 +94,7 @@ For more detailed information, please refer to the documents in the `architectur
     ```sh
     cd cattackles/echo
     # Install its dependencies
-    uv pip install -r requirements.txt 
+    uv pip install -r requirements.txt
     # Run the cattackle server
     python src/server.py
     ```
