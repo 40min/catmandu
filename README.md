@@ -36,14 +36,14 @@ graph TD
         end
         
         Telegram_Poller --> MessageRouter{Message Router}
-        MessageRouter --> CattackleRegistry[Cattackle Registry<br>(In-Memory Cache)]
+        MessageRouter --> CattackleRegistry[Cattackle Registry<br>In-Memory Cache]
         MessageRouter --> MCP_Client_Manager[MCP Client Manager]
     end
 
     subgraph Cattackle Processes
         direction TB
-        Cattackle_Echo[Echo Cattackle (Python)<br>FastMCP Server]
-        Cattackle_Weather[Weather Cattackle (JS)<br>FastMCP Server]
+        Cattackle_Echo[Echo Cattackle -Python-<br>FastMCP Server]
+        Cattackle_Weather[Weather Cattackle -JS-<br>FastMCP Server]
         Cattackle_Other[...]
     end
 
