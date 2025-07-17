@@ -1,4 +1,6 @@
 # Catmandu
+![Catmandu Logo](resources/catmandu_logo.png)
+
 
 Catmandu is a modular and extensible Telegram bot built on a core system that handles the primary interactions with the Telegram API, and a pluggable module system for adding new features. These modules, called "cattackles," can be developed in any language and communicate with the core system over a standardized protocol.
 
