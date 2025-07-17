@@ -11,6 +11,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "structlog>=24.2.0",
     "pre-commit>=4.2.0",
+    "toml>=0.10.2",
+    "fastmcp>=2.10.5",
 ]
 
 [tool.setuptools.packages.find]

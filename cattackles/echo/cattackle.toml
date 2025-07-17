@@ -1,0 +1,10 @@
+[cattackle]
+name = "echo"
+version = "0.1.0"
+description = "A simple cattackle that echoes back the payload."
+
+[cattackle.commands]
+echo = { description = "Echoes back the given payload." }
+
+[cattackle.mcp]
+transport = "stdio"
