@@ -1,9 +1,9 @@
-from fastmcp import FastMcp
+from fastmcp import FastMCP
 
-mcp = FastMcp()
+mcp = FastMCP()
 
 
-@mcp.command()
+@mcp.tool("echo")
 async def echo(payload: dict) -> dict:
     """Echoes back the payload."""
     return payload
