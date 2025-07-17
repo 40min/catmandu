@@ -72,7 +72,3 @@ class CattackleRegistry:
 
     def get_all(self) -> List[CattackleConfig]:
         return list(self._registry.values())
-
-
-# Singleton instance
-cattackle_registry = CattackleRegistry()

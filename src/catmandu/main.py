@@ -4,7 +4,7 @@ import structlog
 from fastapi import FastAPI
 
 from catmandu.api import cattackles, health
-from catmandu.core.services.registry import cattackle_registry
+from catmandu.core.services.registry import CattackleRegistry
 from catmandu.logging import configure_logging
 
 log = structlog.get_logger()
@@ -14,7 +14,9 @@ log = structlog.get_logger()
 async def lifespan(app: FastAPI):
     # Startup
     log.info("Starting Catmandu Core")
-    cattackle_registry.scan()
+    registry = CattackleRegistry()
+    registry.scan()
+    app.state.cattackle_registry = registry
     yield
     # Shutdown
     log.info("Shutting down Catmandu Core")
