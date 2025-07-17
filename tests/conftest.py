@@ -6,6 +6,83 @@ from httpx import ASGITransport, AsyncClient
 
 from catmandu.main import create_app
 
+# A valid cattackle.toml content
+VALID_CATTACKLE_TOML = """
+[cattackle]
+name = "echo"
+version = "0.1.0"
+description = "A simple echo cattackle."
+[cattackle.commands]
+echo = { description = "Echoes back the payload." }
+[cattackle.mcp]
+transport = "stdio"
+"""
+
+# Another valid cattackle.toml for testing duplicates
+VALID_CATTACKLE_TOML_2 = """
+[cattackle]
+name = "admin"
+version = "0.1.0"
+description = "An admin cattackle."
+[cattackle.commands]
+reload = { description = "Reloads cattackles." }
+echo = { description = "A duplicate echo command." }
+[cattackle.mcp]
+transport = "stdio"
+"""
+
+# A malformed TOML file
+INVALID_TOML = """
+[cattackle
+name = "bad"
+"""
+
+# A TOML with missing required fields (validation error)
+INVALID_CONFIG_TOML = """
+[cattackle]
+name = "invalid"
+version = "0.1.0"
+"""
+
+
+@pytest.fixture
+def mock_cattackle_toml(fs):
+    """Fixture to create a virtual cattackle.toml file."""
+
+    def _mock_cattackle_toml(path, contents):
+        fs.create_file(path, contents=contents)
+        return path
+
+    return _mock_cattackle_toml
+
+
+@pytest.fixture
+def valid_cattackle_toml_file(mock_cattackle_toml):
+    """Provides a path to a virtual valid cattackle.toml file."""
+    return mock_cattackle_toml("/cattackles/echo/cattackle.toml", VALID_CATTACKLE_TOML)
+
+
+@pytest.fixture
+def valid_cattackle_toml_2_file(mock_cattackle_toml):
+    """Provides a path to a virtual second valid cattackle.toml file."""
+    return mock_cattackle_toml(
+        "/cattackles/admin/cattackle.toml", VALID_CATTACKLE_TOML_2
+    )
+
+
+@pytest.fixture
+def invalid_toml_file(mock_cattackle_toml):
+    """Provides a path to a virtual malformed TOML file."""
+    return mock_cattackle_toml("/cattackles/bad/cattackle.toml", INVALID_TOML)
+
+
+@pytest.fixture
+def invalid_config_toml_file(mock_cattackle_toml):
+    """Provides a path to a virtual TOML file with missing required fields."""
+    return mock_cattackle_toml(
+        "/cattackles/invalid/cattackle.toml", INVALID_CONFIG_TOML
+    )
+
 
 @pytest.fixture
 def app_test():

@@ -1,53 +1,9 @@
 from catmandu.core.services.registry import CattackleRegistry
 
-# A valid cattackle.toml content
-VALID_CATTACKLE_TOML = """
-[cattackle]
-name = "echo"
-version = "0.1.0"
-description = "A simple echo cattackle."
-[cattackle.commands]
-echo = { description = "Echoes back the payload." }
-[cattackle.mcp]
-transport = "stdio"
-"""
 
-# Another valid cattackle.toml for testing duplicates
-VALID_CATTACKLE_TOML_2 = """
-[cattackle]
-name = "admin"
-version = "0.1.0"
-description = "An admin cattackle."
-[cattackle.commands]
-reload = { description = "Reloads cattackles." }
-echo = { description = "A duplicate echo command." }
-[cattackle.mcp]
-transport = "stdio"
-"""
-
-# A malformed TOML file
-INVALID_TOML = """
-[cattackle
-name = "bad"
-"""
-
-# A TOML with missing required fields (validation error)
-INVALID_CONFIG_TOML = """
-[cattackle]
-name = "invalid"
-version = "0.1.0"
-"""
-
-
-def test_scan_successful(fs):
+def test_scan_successful(fs, valid_cattackle_toml_file, valid_cattackle_toml_2_file):
     """Tests a successful scan of a directory with valid cattackles."""
     cattackles_dir = "/cattackles"
-    fs.create_file(
-        f"{cattackles_dir}/echo/cattackle.toml", contents=VALID_CATTACKLE_TOML
-    )
-    fs.create_file(
-        f"{cattackles_dir}/admin/cattackle.toml", contents=VALID_CATTACKLE_TOML_2
-    )
     fs.create_dir(f"{cattackles_dir}/empty_dir")  # A dir without a manifest
 
     registry = CattackleRegistry(cattackles_dir=cattackles_dir)
@@ -68,13 +24,9 @@ def test_scan_directory_not_found(fs, caplog):
     assert "Cattackles directory not found" in caplog.text
 
 
-8
-
-
-def test_scan_with_malformed_toml(fs, caplog):
+def test_scan_with_malformed_toml(fs, caplog, invalid_toml_file):
     """Tests that a malformed TOML file is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
-    fs.create_file(f"{cattackles_dir}/bad/cattackle.toml", contents=INVALID_TOML)
 
     registry = CattackleRegistry(cattackles_dir=cattackles_dir)
     count = registry.scan()
@@ -84,12 +36,9 @@ def test_scan_with_malformed_toml(fs, caplog):
     assert "TomlDecodeError" in caplog.text
 
 
-def test_scan_with_invalid_config(fs, caplog):
+def test_scan_with_invalid_config(fs, caplog, invalid_config_toml_file):
     """Tests that a config with validation errors is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
-    fs.create_file(
-        f"{cattackles_dir}/invalid/cattackle.toml", contents=INVALID_CONFIG_TOML
-    )
 
     registry = CattackleRegistry(cattackles_dir=cattackles_dir)
     count = registry.scan()
@@ -99,15 +48,11 @@ def test_scan_with_invalid_config(fs, caplog):
     assert "Field required" in caplog.text
 
 
-def test_scan_handles_duplicate_commands(fs, caplog):
+def test_scan_handles_duplicate_commands(
+    fs, caplog, valid_cattackle_toml_file, valid_cattackle_toml_2_file
+):
     """Tests that duplicate commands are registered with a warning."""
     cattackles_dir = "/cattackles"
-    fs.create_file(
-        f"{cattackles_dir}/echo/cattackle.toml", contents=VALID_CATTACKLE_TOML
-    )
-    fs.create_file(
-        f"{cattackles_dir}/admin/cattackle.toml", contents=VALID_CATTACKLE_TOML_2
-    )
 
     registry = CattackleRegistry(cattackles_dir=cattackles_dir)
     registry.scan()
@@ -118,12 +63,9 @@ def test_scan_handles_duplicate_commands(fs, caplog):
     assert "old_cattackle=echo" in caplog.text
 
 
-def test_get_all_returns_list_of_configs(fs):
+def test_get_all_returns_list_of_configs(fs, valid_cattackle_toml_file):
     """Tests the get_all method."""
     cattackles_dir = "/cattackles"
-    fs.create_file(
-        f"{cattackles_dir}/echo/cattackle.toml", contents=VALID_CATTACKLE_TOML
-    )
 
     registry = CattackleRegistry(cattackles_dir=cattackles_dir)
     registry.scan()
