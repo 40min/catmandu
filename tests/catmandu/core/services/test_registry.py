@@ -60,7 +60,7 @@ def test_scan_successful(fs):
     assert names == {"echo", "admin"}
 
 
-def test_scan_directory_not_found(fs, caplog):
+def test_scan_directory_not_found(fs, caplog, caplog_setup_for_loguru):
     """Tests scanning a non-existent directory."""
     registry = CattackleRegistry(cattackles_dir="/nonexistent")
     count = registry.scan()
@@ -68,7 +68,7 @@ def test_scan_directory_not_found(fs, caplog):
     assert "Cattackles directory not found" in caplog.text
 
 
-def test_scan_with_malformed_toml(fs, caplog):
+def test_scan_with_malformed_toml(fs, caplog, caplog_setup_for_loguru):
     """Tests that a malformed TOML file is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
     fs.create_file(f"{cattackles_dir}/bad/cattackle.toml", contents=INVALID_TOML)
@@ -81,7 +81,7 @@ def test_scan_with_malformed_toml(fs, caplog):
     assert "TomlDecodeError" in caplog.text
 
 
-def test_scan_with_invalid_config(fs, caplog):
+def test_scan_with_invalid_config(fs, caplog, caplog_setup_for_loguru):
     """Tests that a config with validation errors is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
     fs.create_file(
@@ -96,7 +96,7 @@ def test_scan_with_invalid_config(fs, caplog):
     assert "ValidationError" in caplog.text
 
 
-def test_scan_handles_duplicate_commands(fs, caplog):
+def test_scan_handles_duplicate_commands(fs, caplog, caplog_setup_for_loguru):
     """Tests that duplicate commands are registered with a warning."""
     cattackles_dir = "/cattackles"
     fs.create_file(

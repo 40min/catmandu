@@ -11,8 +11,10 @@ log = structlog.get_logger()
 
 
 class CattackleRegistry:
-    def __init__(self, cattackles_dir: str = "cattackles"):
-        self._cattackles_dir = pathlib.Path(cattackles_dir)
+    def __init__(self, cattackles_dir: str | None = None):
+        self._cattackles_dir = pathlib.Path(
+            cattackles_dir if cattackles_dir is not None else "cattackles"
+        )
         self._registry: Dict[str, CattackleConfig] = {}
         self._command_map: Dict[str, str] = {}
 
@@ -21,21 +23,26 @@ class CattackleRegistry:
         self._registry.clear()
         self._command_map.clear()
 
-        if not self._cattackles_dir.is_dir():
+        if not self._cattackles_dir.exists():
             log.warning(
                 "Cattackles directory not found", directory=str(self._cattackles_dir)
             )
             return 0
 
-        for cattackle_dir in self._cattackles_dir.iterdir():
-            if not cattackle_dir.is_dir():
-                continue
+        files_to_check = []
+        if self._cattackles_dir.is_dir():
+            files_to_check.extend(self._cattackles_dir.iterdir())
+        elif self._cattackles_dir.is_file():
+            files_to_check.append(self._cattackles_dir)
 
-            manifest_path = cattackle_dir / "cattackle.toml"
-            if not manifest_path.is_file():
-                log.debug(
-                    "No manifest found for cattackle", directory=str(cattackle_dir)
-                )
+        for item in files_to_check:
+            manifest_path = None
+            if item.is_dir():
+                manifest_path = item / "cattackle.toml"
+            elif item.is_file() and item.name == "cattackle.toml":
+                manifest_path = item
+
+            if not manifest_path or not manifest_path.is_file():
                 continue
 
             try:

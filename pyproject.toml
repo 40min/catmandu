@@ -13,6 +13,7 @@ dependencies = [
     "pre-commit>=4.2.0",
     "toml>=0.10.2",
     "fastmcp>=2.10.5",
+    "loguru>=0.7.3",
 ]
 
 [tool.setuptools.packages.find]

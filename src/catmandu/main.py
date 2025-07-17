@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import structlog
 from fastapi import FastAPI
@@ -11,18 +12,18 @@ log = structlog.get_logger()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI, cattackles_dir: Optional[str] = None):
     # Startup
     log.info("Starting Catmandu Core")
-    registry = CattackleRegistry()
+    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
     registry.scan()
-    app.state.cattackle_registry = registry
+    app.state.registry = registry
     yield
     # Shutdown
     log.info("Shutting down Catmandu Core")
 
 
-def create_app() -> FastAPI:
+def create_app(cattackles_dir: Optional[str] = None) -> FastAPI:
     configure_logging()
     app = FastAPI(
         title="Catmandu Core",
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.state.cattackles_dir = cattackles_dir
     app.include_router(health.router)
     app.include_router(cattackles.router)
     return app
