@@ -1,3 +1,4 @@
+from catmandu.core.config import Settings
 from catmandu.core.services.registry import CattackleRegistry
 
 
@@ -6,7 +7,8 @@ def test_scan_successful(fs, valid_cattackle_toml_file, valid_cattackle_toml_2_f
     cattackles_dir = "/cattackles"
     fs.create_dir(f"{cattackles_dir}/empty_dir")  # A dir without a manifest
 
-    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
+    settings = Settings(cattackles_dir=cattackles_dir)
+    registry = CattackleRegistry(config=settings)
     count = registry.scan()
 
     assert count == 2
@@ -18,7 +20,8 @@ def test_scan_successful(fs, valid_cattackle_toml_file, valid_cattackle_toml_2_f
 
 def test_scan_directory_not_found(fs, caplog):
     """Tests scanning a non-existent directory."""
-    registry = CattackleRegistry(cattackles_dir="/nonexistent")
+    settings = Settings(cattackles_dir="/nonexistent")
+    registry = CattackleRegistry(config=settings)
     count = registry.scan()
     assert count == 0
     assert "Cattackles directory not found" in caplog.text
@@ -28,7 +31,8 @@ def test_scan_with_malformed_toml(fs, caplog, invalid_toml_file):
     """Tests that a malformed TOML file is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
 
-    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
+    settings = Settings(cattackles_dir=cattackles_dir)
+    registry = CattackleRegistry(config=settings)
     count = registry.scan()
 
     assert count == 0
@@ -40,7 +44,8 @@ def test_scan_with_invalid_config(fs, caplog, invalid_config_toml_file):
     """Tests that a config with validation errors is skipped and an error is logged."""
     cattackles_dir = "/cattackles"
 
-    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
+    settings = Settings(cattackles_dir=cattackles_dir)
+    registry = CattackleRegistry(config=settings)
     count = registry.scan()
 
     assert count == 0
@@ -54,7 +59,8 @@ def test_scan_handles_duplicate_commands(
     """Tests that duplicate commands are registered with a warning."""
     cattackles_dir = "/cattackles"
 
-    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
+    settings = Settings(cattackles_dir=cattackles_dir)
+    registry = CattackleRegistry(config=settings)
     registry.scan()
 
     assert "Duplicate command found, overwriting" in caplog.text
@@ -67,7 +73,8 @@ def test_get_all_returns_list_of_configs(fs, valid_cattackle_toml_file):
     """Tests the get_all method."""
     cattackles_dir = "/cattackles"
 
-    registry = CattackleRegistry(cattackles_dir=cattackles_dir)
+    settings = Settings(cattackles_dir=cattackles_dir)
+    registry = CattackleRegistry(config=settings)
     registry.scan()
 
     all_cattackles = registry.get_all()

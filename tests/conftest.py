@@ -91,7 +91,7 @@ def app_test():
 
 
 @pytest.fixture
-async def async_client(app_test):  # Depends on clean_db for per-test cleanup
+async def async_client(app_test):
     """Get async test client"""
     async with AsyncClient(
         transport=ASGITransport(app=app_test), base_url="http://test"
