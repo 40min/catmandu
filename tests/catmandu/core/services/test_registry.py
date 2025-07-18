@@ -53,22 +53,6 @@ def test_scan_with_invalid_config(fs, caplog, invalid_config_toml_file):
     assert "Field required" in caplog.text
 
 
-def test_scan_handles_duplicate_commands(
-    fs, caplog, valid_cattackle_toml_file, valid_cattackle_toml_2_file
-):
-    """Tests that duplicate commands are registered with a warning."""
-    cattackles_dir = "/cattackles"
-
-    settings = Settings(cattackles_dir=cattackles_dir)
-    registry = CattackleRegistry(config=settings)
-    registry.scan()
-
-    assert "Duplicate command found, overwriting" in caplog.text
-    assert "command=echo" in caplog.text
-    assert "new_cattackle=admin" in caplog.text
-    assert "old_cattackle=echo" in caplog.text
-
-
 def test_get_all_returns_list_of_configs(fs, valid_cattackle_toml_file):
     """Tests the get_all method."""
     cattackles_dir = "/cattackles"

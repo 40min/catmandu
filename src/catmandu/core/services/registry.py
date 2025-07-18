@@ -13,14 +13,12 @@ class CattackleRegistry:
     def __init__(self, config: Settings):
         self._cattackles_dir = pathlib.Path(config.cattackles_dir)
         self._registry: Dict[str, CattackleConfig] = {}
-        self._command_map: Dict[str, str] = {}
 
         self.log = structlog.get_logger(self.__class__.__name__)
 
     def scan(self) -> int:
         self.log.info("Scanning for cattackles", directory=str(self._cattackles_dir))
         self._registry.clear()
-        self._command_map.clear()
 
         if not self._cattackles_dir.exists():
             self.log.warning(
@@ -54,15 +52,7 @@ class CattackleRegistry:
                     )
 
                 self._registry[cattackle_name] = config
-                for command in config.cattackle.commands:
-                    if command in self._command_map:
-                        self.log.warning(
-                            "Duplicate command found, overwriting",
-                            command=command,
-                            new_cattackle=cattackle_name,
-                            old_cattackle=self._command_map[command],
-                        )
-                    self._command_map[command] = cattackle_name
+
                 self.log.info(
                     "Registered cattackle", name=cattackle_name, path=str(manifest_path)
                 )
