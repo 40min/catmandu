@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from catmandu.api import cattackles, health
+from catmandu.api import admin, cattackles, health
 from catmandu.core.config import Settings
 from catmandu.core.services.registry import CattackleRegistry
 from catmandu.logging import configure_logging
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(cattackles.router)
+    app.include_router(admin.router)
     return app
 
 

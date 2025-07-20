@@ -59,6 +59,15 @@ async def test_list_cattackles_no_cattackles(
     assert response.json() == []
 
 
+async def test_admin_reload_cattackles(
+    async_client: AsyncClient, test_registry_with_cattackles
+):
+    """Tests the POST /admin/reload endpoint."""
+    response = await async_client.post("/admin/reload")
+    assert response.status_code == 200
+    assert response.json() == {"status": "reloaded", "found": 1}
+
+
 async def test_list_cattackles_with_cattackles(
     async_client: AsyncClient, test_registry_with_cattackles
 ):
