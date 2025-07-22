@@ -12,10 +12,14 @@ VALID_CATTACKLE_TOML = """
 name = "echo"
 version = "0.1.0"
 description = "A simple echo cattackle."
-[cattackle.commands]
-echo = { description = "Echoes back the payload." }
-[cattackle.mcp]
-transport = "stdio"
+
+[cattackle.commands.echo]
+description = "Echoes back the payload."
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.echo.src.server"]
 """
 
 # Another valid cattackle.toml for testing duplicates
@@ -24,11 +28,17 @@ VALID_CATTACKLE_TOML_2 = """
 name = "admin"
 version = "0.1.0"
 description = "An admin cattackle."
-[cattackle.commands]
-reload = { description = "Reloads cattackles." }
-echo = { description = "A duplicate echo command." }
-[cattackle.mcp]
-transport = "stdio"
+
+[cattackle.commands.reload]
+description = "Reloads cattackles."
+
+[cattackle.commands.echo]
+description = "A duplicate echo command."
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.admin.src.server"]
 """
 
 # A malformed TOML file
@@ -65,9 +75,7 @@ def valid_cattackle_toml_file(mock_cattackle_toml):
 @pytest.fixture
 def valid_cattackle_toml_2_file(mock_cattackle_toml):
     """Provides a path to a virtual second valid cattackle.toml file."""
-    return mock_cattackle_toml(
-        "/cattackles/admin/cattackle.toml", VALID_CATTACKLE_TOML_2
-    )
+    return mock_cattackle_toml("/cattackles/admin/cattackle.toml", VALID_CATTACKLE_TOML_2)
 
 
 @pytest.fixture
@@ -79,9 +87,7 @@ def invalid_toml_file(mock_cattackle_toml):
 @pytest.fixture
 def invalid_config_toml_file(mock_cattackle_toml):
     """Provides a path to a virtual TOML file with missing required fields."""
-    return mock_cattackle_toml(
-        "/cattackles/invalid/cattackle.toml", INVALID_CONFIG_TOML
-    )
+    return mock_cattackle_toml("/cattackles/invalid/cattackle.toml", INVALID_CONFIG_TOML)
 
 
 @pytest.fixture
@@ -93,10 +99,20 @@ def app_test():
 @pytest.fixture
 async def async_client(app_test):
     """Get async test client"""
-    async with AsyncClient(
-        transport=ASGITransport(app=app_test), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app_test), base_url="http://test") as client:
         yield client
+
+
+@pytest.fixture
+def test_registry_with_cattackles(valid_cattackle_toml_file):
+    """Create a registry with cattackles for testing."""
+    from catmandu.core.config import Settings
+    from catmandu.core.services.registry import CattackleRegistry
+
+    settings = Settings()
+    registry = CattackleRegistry(config=settings)
+    registry.scan()
+    return registry
 
 
 @pytest.fixture(autouse=True)

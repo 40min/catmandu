@@ -8,7 +8,9 @@ from catmandu.core.services.registry import CattackleRegistry
 
 @pytest.fixture
 def registry(fs):
-    fs.create_dir("cattackles")
+    # Create cattackles directory if it doesn't exist
+    if not fs.exists("cattackles"):
+        fs.create_dir("cattackles")
     settings = Settings(cattackles_dir="cattackles", telegram_bot_token="dummy_token")
     return CattackleRegistry(config=settings)
 
@@ -22,10 +24,14 @@ def valid_cattackle_toml_file(fs):
 name = "echo"
 description = "Echoes back the input"
 version = "0.1.0"
-commands = ["echo"]
 
-[cattackle.mcp]
-transport = "stdio"
+[cattackle.commands.echo]
+description = "Echoes back the payload."
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.echo.src.server"]
 """,
     )
 
@@ -53,10 +59,14 @@ def another_cattackle_toml_file(fs):
 name = "another"
 description = "Another cattackle"
 version = "0.1.0"
-commands = ["another"]
 
-[cattackle.mcp]
-transport = "stdio"
+[cattackle.commands.another]
+description = "Another command."
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.another.src.server"]
 """,
     )
 

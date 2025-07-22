@@ -39,12 +39,16 @@ async def lifespan(app: FastAPI):
 
     poller_task = asyncio.create_task(poller.run())
 
-    yield
-    # Shutdown
-    log.info("Shutting down Catmandu Core")
-    await poller.stop()
-    await poller_task
-    await telegram_service.close()
+    try:
+        yield
+    finally:
+        # Shutdown
+        log.info("Shutting down Catmandu Core")
+        await poller.stop()
+        await poller_task
+        await telegram_service.close()
+        # Clean up all MCP client sessions
+        await mcp_client_manager.close_all_sessions()
 
 
 def create_app() -> FastAPI:

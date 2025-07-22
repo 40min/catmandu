@@ -1,10 +1,13 @@
 import asyncio
 import os
-from typing import Dict
+from contextlib import AsyncExitStack
+from typing import Dict, Tuple
 
 import structlog
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.websocket import websocket_client
 
 from catmandu.core.errors import CattackleExecutionError
 from catmandu.core.models import (
@@ -15,9 +18,6 @@ from catmandu.core.models import (
     WebSocketTransportConfig,
 )
 
-# from mcp.client.streamable_http import streamablehttp_client
-# from mcp.client.websocket import websocket_client
-
 
 class McpClientManager:
     """
@@ -26,12 +26,13 @@ class McpClientManager:
     This service abstracts the communication with cattackle processes using
     the official Model Context Protocol Python SDK. It supports multiple
     transport protocols (STDIO, WebSocket, HTTP) and provides session
-    management with connection pooling.
+    management with proper context manager usage for resource cleanup.
     """
 
     def __init__(self):
         self.log = structlog.get_logger(self.__class__.__name__)
-        self._active_sessions: Dict[str, ClientSession] = {}
+        # Store exit stacks and sessions together for proper cleanup
+        self._active_contexts: Dict[str, Tuple[AsyncExitStack, ClientSession]] = {}
 
     async def call(self, cattackle_config: CattackleConfig, command: str, payload: dict) -> CattackleResponse:
         """
@@ -143,8 +144,8 @@ class McpClientManager:
         cattackle_name = cattackle_config.cattackle.name
 
         # Check if we have an active session
-        if cattackle_name in self._active_sessions:
-            session = self._active_sessions[cattackle_name]
+        if cattackle_name in self._active_contexts:
+            exit_stack, session = self._active_contexts[cattackle_name]
             # Check if session is still valid
             if await self._check_session_health(session):
                 return session
@@ -156,18 +157,15 @@ class McpClientManager:
         transport_config = cattackle_config.cattackle.mcp.transport
 
         if isinstance(transport_config, StdioTransportConfig):
-            session = await self._create_stdio_session(transport_config)
+            exit_stack, session = await self._create_stdio_session(transport_config)
         elif isinstance(transport_config, WebSocketTransportConfig):
-            session = await self._create_websocket_session(transport_config)
+            exit_stack, session = await self._create_websocket_session(transport_config)
         elif isinstance(transport_config, HttpTransportConfig):
-            session = await self._create_http_session(transport_config)
+            exit_stack, session = await self._create_http_session(transport_config)
         else:
             raise CattackleExecutionError(f"Unsupported transport type: {transport_config.type}")
 
-        # For testing purposes, we'll assume the session is already initialized
-        # In a real implementation, we would ensure the session is initialized here
-
-        self._active_sessions[cattackle_name] = session
+        self._active_contexts[cattackle_name] = (exit_stack, session)
         return session
 
     async def _check_session_health(self, session: ClientSession) -> bool:
@@ -180,20 +178,26 @@ class McpClientManager:
         Returns:
             bool: True if the session is healthy, False otherwise
         """
-        # For now, we assume all sessions are healthy
-        # In the future, we could implement a ping/pong mechanism
-        return True
+        try:
+            # Try to list tools as a health check
+            await session.list_tools()
+            return True
+        except Exception as e:
+            self.log.debug("Session health check failed", error=str(e))
+            return False
 
-    async def _create_stdio_session(self, config: StdioTransportConfig) -> ClientSession:
+    async def _create_stdio_session(self, config: StdioTransportConfig) -> Tuple[AsyncExitStack, ClientSession]:
         """
-        Create a stdio-based MCP session.
+        Create a stdio-based MCP session using proper context management.
 
         Args:
             config: STDIO transport configuration
 
         Returns:
-            ClientSession: An initialized MCP client session
+            Tuple of (AsyncExitStack, ClientSession): Exit stack for cleanup and initialized session
         """
+        self.log.info("Creating STDIO MCP session", command=config.command)
+
         # Prepare environment variables
         env = os.environ.copy()  # Start with current environment
         if config.env:
@@ -202,84 +206,103 @@ class McpClientManager:
         # Create server parameters
         server_params = StdioServerParameters(command=config.command, args=config.args or [], env=env, cwd=config.cwd)
 
-        # Create STDIO transport
-        reader, writer = await stdio_client(server_params)
+        try:
+            # Use AsyncExitStack to manage context managers
+            # Note: LIFO cleanup order ensures session is closed before transport
+            exit_stack = AsyncExitStack()
 
-        # Create and initialize session
-        session = ClientSession(reader, writer)
-        await session.initialize()
+            # Enter the stdio_client context manager first
+            reader, writer = await exit_stack.enter_async_context(stdio_client(server_params))
 
-        return session
+            # Enter the ClientSession context manager second (will be closed first due to LIFO)
+            session = await exit_stack.enter_async_context(ClientSession(reader, writer))
+            await session.initialize()
 
-    async def _create_websocket_session(self, config: WebSocketTransportConfig) -> ClientSession:
+            return exit_stack, session
+
+        except Exception as e:
+            self.log.error("Failed to create STDIO session", command=config.command, error=str(e))
+            # Clean up the exit stack if session creation failed
+            if "exit_stack" in locals():
+                await exit_stack.aclose()
+            raise CattackleExecutionError(f"Failed to create STDIO session: {e}") from e
+
+    async def _create_websocket_session(self, config: WebSocketTransportConfig) -> Tuple[AsyncExitStack, ClientSession]:
         """
-        Create a WebSocket-based MCP session.
+        Create a WebSocket-based MCP session using proper context management.
 
         Args:
             config: WebSocket transport configuration
 
         Returns:
-            ClientSession: An initialized MCP client session
+            Tuple of (AsyncExitStack, ClientSession): Exit stack for cleanup and initialized session
         """
-        # TODO: Implement proper WebSocket session creation for production
-        # This would involve:
-        # 1. Creating a proper WebSocket connection using websocket_client context manager
-        # 2. Keeping the connection alive for the lifetime of the session
-        # 3. Handling reconnection logic if the connection is lost
-        # 4. Properly cleaning up resources when the session is closed
+        self.log.info("Creating WebSocket MCP session", url=config.url)
 
-        # For now, we'll create a session with mock components for testing
-        from unittest.mock import AsyncMock
+        # Prepare headers
+        headers = config.headers or {}
 
-        mock_reader = AsyncMock()
-        mock_writer = AsyncMock()
+        try:
+            # Use AsyncExitStack to manage context managers
+            # Note: LIFO cleanup order ensures session is closed before transport
+            exit_stack = AsyncExitStack()
 
-        # Create a ClientSession with mock components
-        session = ClientSession(mock_reader, mock_writer)
+            # Enter the websocket_client context manager first
+            reader, writer = await exit_stack.enter_async_context(websocket_client(config.url))
 
-        # In a real implementation, we would initialize the session
-        # but for testing we'll skip this to avoid hanging
-        # await session.initialize()
+            # Enter the ClientSession context manager second (will be closed first due to LIFO)
+            session = await exit_stack.enter_async_context(ClientSession(reader, writer))
+            await session.initialize()
 
-        # Add a dummy close method for our tests
-        session.close = AsyncMock()
+            return exit_stack, session
 
-        return session
+        except Exception as e:
+            self.log.error("Failed to create WebSocket session", url=config.url, error=str(e))
+            # Clean up the exit stack if session creation failed
+            if "exit_stack" in locals():
+                await exit_stack.aclose()
+            raise CattackleExecutionError(f"Failed to create WebSocket session: {e}") from e
 
-    async def _create_http_session(self, config: HttpTransportConfig) -> ClientSession:
+    async def _create_http_session(self, config: HttpTransportConfig) -> Tuple[AsyncExitStack, ClientSession]:
         """
-        Create an HTTP-based MCP session.
+        Create an HTTP-based MCP session using proper context management.
 
         Args:
             config: HTTP transport configuration
 
         Returns:
-            ClientSession: An initialized MCP client session
+            Tuple of (AsyncExitStack, ClientSession): Exit stack for cleanup and initialized session
         """
-        # TODO: Implement proper HTTP session creation for production
-        # This would involve:
-        # 1. Creating a proper HTTP connection using streamablehttp_client context manager
-        # 2. Keeping the connection alive for the lifetime of the session
-        # 3. Handling reconnection logic if the connection is lost
-        # 4. Properly cleaning up resources when the session is closed
+        self.log.info("Creating HTTP MCP session", url=config.url)
 
-        # For now, we'll create a session with mock components for testing
-        from unittest.mock import AsyncMock
+        # Prepare headers
+        headers = config.headers or {}
 
-        mock_reader = AsyncMock()
-        mock_writer = AsyncMock()
+        try:
+            # Use AsyncExitStack to manage context managers
+            # Note: LIFO cleanup order ensures session is closed before transport
+            exit_stack = AsyncExitStack()
 
-        # Create a ClientSession with mock components
-        session = ClientSession(mock_reader, mock_writer)
+            # Enter the streamablehttp_client context manager first
+            reader, writer, get_session_id = await exit_stack.enter_async_context(
+                streamablehttp_client(config.url, headers=headers)
+            )
 
-        # In a real implementation, we would initialize the session
-        # but for testing we'll skip this to avoid hanging
-        # await session.initialize()
+            # Enter the ClientSession context manager second (will be closed first due to LIFO)
+            session = await exit_stack.enter_async_context(ClientSession(reader, writer))
+            await session.initialize()
 
-        # Add a dummy close method for our tests
-        session.close = AsyncMock()
+            # Store the session ID callback for potential future use
+            session.get_session_id = get_session_id
 
-        return session
+            return exit_stack, session
+
+        except Exception as e:
+            self.log.error("Failed to create HTTP session", url=config.url, error=str(e))
+            # Clean up the exit stack if session creation failed
+            if "exit_stack" in locals():
+                await exit_stack.aclose()
+            raise CattackleExecutionError(f"Failed to create HTTP session: {e}") from e
 
     async def close_session(self, cattackle_name: str):
         """
@@ -288,17 +311,16 @@ class McpClientManager:
         Args:
             cattackle_name: Name of the cattackle whose session to close
         """
-        if cattackle_name in self._active_sessions:
-            session = self._active_sessions.pop(cattackle_name)
+        if cattackle_name in self._active_contexts:
+            exit_stack, session = self._active_contexts.pop(cattackle_name)
             try:
-                # Check if the session has a close method
-                if hasattr(session, "close"):
-                    await session.close()
-                # If not, we'll just remove it from active sessions
+                # Properly close the context manager stack
+                await exit_stack.aclose()
+                self.log.debug("Closed session context", cattackle=cattackle_name)
             except Exception as e:
-                self.log.warning("Error closing session", cattackle=cattackle_name, error=str(e))
+                self.log.warning("Error closing session context", cattackle=cattackle_name, error=str(e))
 
     async def close_all_sessions(self):
         """Close all active sessions."""
-        for cattackle_name in list(self._active_sessions.keys()):
+        for cattackle_name in list(self._active_contexts.keys()):
             await self.close_session(cattackle_name)

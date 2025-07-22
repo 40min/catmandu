@@ -38,13 +38,24 @@ def app_test_with_mocks(
     mock_mcp_client_manager,
 ):
     """Override services in app state for integration testing."""
-    app_test.state.telegram_service = mock_telegram_service
-    app_test.state.mcp_client_manager = mock_mcp_client_manager
+    from catmandu.core.config import Settings
+    from catmandu.core.services.poller import TelegramPoller
+    from catmandu.core.services.router import MessageRouter
 
-    # Re-wire dependencies in services that were created with old instances
-    app_test.state.router._mcp_client = mock_mcp_client_manager
-    app_test.state.poller._telegram = mock_telegram_service
-    app_test.state.poller._router = app_test.state.router
+    # Initialize services manually since lifespan doesn't run in tests
+    settings = Settings()
+    message_router = MessageRouter(
+        mcp_client_manager=mock_mcp_client_manager, cattackle_registry=test_registry_with_cattackles
+    )
+    poller = TelegramPoller(router=message_router, telegram_service=mock_telegram_service, settings=settings)
+
+    # Store services in app state
+    app_test.state.cattackle_registry = test_registry_with_cattackles
+    app_test.state.mcp_client_manager = mock_mcp_client_manager
+    app_test.state.message_router = message_router
+    app_test.state.telegram_service = mock_telegram_service
+    app_test.state.poller = poller
+
     return app_test
 
 

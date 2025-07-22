@@ -131,11 +131,14 @@ async def test_call_timeout(mcp_client_manager, stdio_cattackle_config):
 async def test_session_caching(mcp_client_manager, stdio_cattackle_config):
     """Test that sessions are cached and reused."""
     mock_session = AsyncMock()
+    mock_exit_stack = AsyncMock()
     mock_response = MagicMock()
     mock_response.content = [MagicMock(text={"result": "cached"})]
     mock_session.call_tool.return_value = mock_response
 
-    with patch.object(mcp_client_manager, "_create_stdio_session", return_value=mock_session) as mock_create:
+    with patch.object(
+        mcp_client_manager, "_create_stdio_session", return_value=(mock_exit_stack, mock_session)
+    ) as mock_create:
         with patch.object(mcp_client_manager, "_check_session_health", return_value=True):
             # First call should create session
             await mcp_client_manager.call(stdio_cattackle_config, "echo", {})
@@ -151,19 +154,25 @@ async def test_session_health_check(mcp_client_manager, stdio_cattackle_config):
     """Test session health check and recreation."""
     mock_session1 = AsyncMock()
     mock_session2 = AsyncMock()
+    mock_exit_stack1 = AsyncMock()
+    mock_exit_stack2 = AsyncMock()
     mock_response = MagicMock()
     mock_response.content = [MagicMock(text={"result": "success"})]
     mock_session1.call_tool.return_value = mock_response
     mock_session2.call_tool.return_value = mock_response
 
     # First call with healthy session
-    with patch.object(mcp_client_manager, "_create_stdio_session", return_value=mock_session1) as mock_create:
+    with patch.object(
+        mcp_client_manager, "_create_stdio_session", return_value=(mock_exit_stack1, mock_session1)
+    ) as mock_create:
         with patch.object(mcp_client_manager, "_check_session_health", return_value=True):
             await mcp_client_manager.call(stdio_cattackle_config, "echo", {})
             assert mock_create.call_count == 1
 
     # Second call with unhealthy session should recreate
-    with patch.object(mcp_client_manager, "_create_stdio_session", return_value=mock_session2) as mock_create:
+    with patch.object(
+        mcp_client_manager, "_create_stdio_session", return_value=(mock_exit_stack2, mock_session2)
+    ) as mock_create:
         with patch.object(mcp_client_manager, "_check_session_health", return_value=False):
             await mcp_client_manager.call(stdio_cattackle_config, "echo", {})
             assert mock_create.call_count == 1  # Called again to create new session
@@ -173,12 +182,13 @@ async def test_session_health_check(mcp_client_manager, stdio_cattackle_config):
 async def test_close_session(mcp_client_manager):
     """Test session cleanup."""
     mock_session = AsyncMock()
-    mcp_client_manager._active_sessions["test"] = mock_session
+    mock_exit_stack = AsyncMock()
+    mcp_client_manager._active_contexts["test"] = (mock_exit_stack, mock_session)
 
     await mcp_client_manager.close_session("test")
 
-    assert "test" not in mcp_client_manager._active_sessions
-    mock_session.close.assert_called_once()
+    assert "test" not in mcp_client_manager._active_contexts
+    mock_exit_stack.aclose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -186,43 +196,174 @@ async def test_close_all_sessions(mcp_client_manager):
     """Test closing all sessions."""
     mock_session1 = AsyncMock()
     mock_session2 = AsyncMock()
-    mcp_client_manager._active_sessions = {
-        "test1": mock_session1,
-        "test2": mock_session2,
+    mock_exit_stack1 = AsyncMock()
+    mock_exit_stack2 = AsyncMock()
+    mcp_client_manager._active_contexts = {
+        "test1": (mock_exit_stack1, mock_session1),
+        "test2": (mock_exit_stack2, mock_session2),
     }
 
     await mcp_client_manager.close_all_sessions()
 
-    assert len(mcp_client_manager._active_sessions) == 0
-    mock_session1.close.assert_called_once()
-    mock_session2.close.assert_called_once()
+    assert len(mcp_client_manager._active_contexts) == 0
+    mock_exit_stack1.aclose.assert_called_once()
+    mock_exit_stack2.aclose.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_session_by_transport_type(
+    mcp_client_manager, stdio_cattackle_config, websocket_cattackle_config, http_cattackle_config
+):
+    """Test session creation based on transport type."""
+    # Mock the session creation methods
+    mock_stdio_session = AsyncMock()
+    mock_websocket_session = AsyncMock()
+    mock_http_session = AsyncMock()
+    mock_exit_stack1 = AsyncMock()
+    mock_exit_stack2 = AsyncMock()
+    mock_exit_stack3 = AsyncMock()
+
+    with patch.object(
+        mcp_client_manager, "_create_stdio_session", return_value=(mock_exit_stack1, mock_stdio_session)
+    ) as mock_create_stdio:
+        with patch.object(
+            mcp_client_manager, "_create_websocket_session", return_value=(mock_exit_stack2, mock_websocket_session)
+        ) as mock_create_websocket:
+            with patch.object(
+                mcp_client_manager, "_create_http_session", return_value=(mock_exit_stack3, mock_http_session)
+            ) as mock_create_http:
+                # Test STDIO transport
+                session = await mcp_client_manager._get_or_create_session(stdio_cattackle_config)
+                assert session == mock_stdio_session
+                mock_create_stdio.assert_called_once()
+
+                # Test WebSocket transport
+                session = await mcp_client_manager._get_or_create_session(websocket_cattackle_config)
+                assert session == mock_websocket_session
+                mock_create_websocket.assert_called_once()
+
+                # Test HTTP transport
+                session = await mcp_client_manager._get_or_create_session(http_cattackle_config)
+                assert session == mock_http_session
+                mock_create_http.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_session_unsupported_transport(mcp_client_manager, stdio_cattackle_config):
+    """Test error handling for unsupported transport types."""
+    # Create a mock unsupported transport by patching isinstance checks
+    from unittest.mock import MagicMock
+
+    # Create a mock transport that doesn't match any of the supported types
+    mock_transport = MagicMock()
+    mock_transport.type = "unsupported"
+
+    # Patch the transport in the config
+    with patch.object(stdio_cattackle_config.cattackle.mcp, "transport", mock_transport):
+        # Mock isinstance to return False for all supported transport types
+        with patch("catmandu.core.services.mcp_client.isinstance", return_value=False):
+            # Verify exception is raised for unsupported transport
+            with pytest.raises(CattackleExecutionError, match="Unsupported transport type"):
+                await mcp_client_manager._get_or_create_session(stdio_cattackle_config)
 
 
 @pytest.mark.asyncio
 async def test_websocket_transport(mcp_client_manager, websocket_cattackle_config):
     """Test WebSocket transport creation."""
-    # Test that we get a session back
-    session = await mcp_client_manager._create_websocket_session(websocket_cattackle_config.cattackle.mcp.transport)
+    # Mock the websocket_client function as an async context manager
+    mock_reader = AsyncMock()
+    mock_writer = AsyncMock()
+    mock_session = AsyncMock(spec=ClientSession)
+    mock_session.initialize = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    # Verify it's a ClientSession instance
-    assert isinstance(session, ClientSession)
-    # Verify it has the expected methods
-    assert hasattr(session, "initialize")
-    assert hasattr(session, "call_tool")
-    # Verify our added close method is present
-    assert hasattr(session, "close")
+    # Create a mock async context manager for websocket_client
+    mock_ws_context_manager = AsyncMock()
+    mock_ws_context_manager.__aenter__ = AsyncMock(return_value=(mock_reader, mock_writer))
+    mock_ws_context_manager.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "catmandu.core.services.mcp_client.websocket_client", return_value=mock_ws_context_manager
+    ) as mock_ws_client:
+        with patch("catmandu.core.services.mcp_client.ClientSession", return_value=mock_session):
+            # Call the method
+            exit_stack, session = await mcp_client_manager._create_websocket_session(
+                websocket_cattackle_config.cattackle.mcp.transport
+            )
+
+            # Verify websocket_client was called with correct parameters
+            mock_ws_client.assert_called_once_with(websocket_cattackle_config.cattackle.mcp.transport.url)
+
+            # Verify session was initialized
+            mock_session.initialize.assert_called_once()
+
+            # Verify we got the session back
+            assert session == mock_session
+            # Verify we got an exit stack
+            assert exit_stack is not None
+
+
+@pytest.mark.asyncio
+async def test_websocket_transport_error(mcp_client_manager, websocket_cattackle_config):
+    """Test WebSocket transport creation error handling."""
+    # Mock the websocket_client function to raise an exception
+    with patch("catmandu.core.services.mcp_client.websocket_client", side_effect=Exception("Connection failed")):
+        # Verify exception is properly wrapped
+        with pytest.raises(CattackleExecutionError, match="Failed to create WebSocket session"):
+            await mcp_client_manager._create_websocket_session(websocket_cattackle_config.cattackle.mcp.transport)
 
 
 @pytest.mark.asyncio
 async def test_http_transport(mcp_client_manager, http_cattackle_config):
     """Test HTTP transport creation."""
-    # Test that we get a session back
-    session = await mcp_client_manager._create_http_session(http_cattackle_config.cattackle.mcp.transport)
+    # Mock the streamablehttp_client function as an async context manager
+    mock_reader = AsyncMock()
+    mock_writer = AsyncMock()
+    mock_get_session_id = MagicMock(return_value="test-session-id")
+    mock_session = AsyncMock(spec=ClientSession)
+    mock_session.initialize = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    # Verify it's a ClientSession instance
-    assert isinstance(session, ClientSession)
-    # Verify it has the expected methods
-    assert hasattr(session, "initialize")
-    assert hasattr(session, "call_tool")
-    # Verify our added close method is present
-    assert hasattr(session, "close")
+    # Create a mock async context manager for streamablehttp_client
+    mock_http_context_manager = AsyncMock()
+    mock_http_context_manager.__aenter__ = AsyncMock(return_value=(mock_reader, mock_writer, mock_get_session_id))
+    mock_http_context_manager.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "catmandu.core.services.mcp_client.streamablehttp_client", return_value=mock_http_context_manager
+    ) as mock_http_client:
+        with patch("catmandu.core.services.mcp_client.ClientSession", return_value=mock_session):
+            # Call the method
+            exit_stack, session = await mcp_client_manager._create_http_session(
+                http_cattackle_config.cattackle.mcp.transport
+            )
+
+            # Verify streamablehttp_client was called with correct parameters
+            mock_http_client.assert_called_once_with(
+                http_cattackle_config.cattackle.mcp.transport.url,
+                headers=http_cattackle_config.cattackle.mcp.transport.headers,
+            )
+
+            # Verify session was initialized
+            mock_session.initialize.assert_called_once()
+
+            # Verify get_session_id was attached
+            assert hasattr(session, "get_session_id")
+            assert session.get_session_id == mock_get_session_id
+
+            # Verify we got the session back
+            assert session == mock_session
+            # Verify we got an exit stack
+            assert exit_stack is not None
+
+
+@pytest.mark.asyncio
+async def test_http_transport_error(mcp_client_manager, http_cattackle_config):
+    """Test HTTP transport creation error handling."""
+    # Mock the streamablehttp_client function to raise an exception
+    with patch("catmandu.core.services.mcp_client.streamablehttp_client", side_effect=Exception("Connection failed")):
+        # Verify exception is properly wrapped
+        with pytest.raises(CattackleExecutionError, match="Failed to create HTTP session"):
+            await mcp_client_manager._create_http_session(http_cattackle_config.cattackle.mcp.transport)

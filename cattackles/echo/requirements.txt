@@ -1,1 +1,1 @@
-fastmcp>=0.1.0
+# No additional dependencies needed - uses mcp from main project
