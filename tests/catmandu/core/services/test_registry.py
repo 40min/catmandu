@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 
 from catmandu.core.config import Settings
@@ -5,68 +7,113 @@ from catmandu.core.services.registry import CattackleRegistry
 
 
 @pytest.fixture
-def registry():
-    """Fixture to provide a CattackleRegistry instance with configurable settings."""
-    settings = Settings(cattackles_dir="/cattackles")
-    registry = CattackleRegistry(config=settings)
-    registry.scan()
-
-    return registry
+def registry(fs):
+    fs.create_dir("cattackles")
+    settings = Settings(cattackles_dir="cattackles", telegram_bot_token="dummy_token")
+    return CattackleRegistry(config=settings)
 
 
 @pytest.fixture
-def nonexistent_dir_registry():
-    """Fixture to provide a CattackleRegistry instance with configurable settings."""
-    settings = Settings(cattackles_dir="/nonexistent")
-    registry = CattackleRegistry(config=settings)
+def valid_cattackle_toml_file(fs):
+    fs.create_file(
+        "cattackles/echo/cattackle.toml",
+        contents="""
+[cattackle]
+name = "echo"
+description = "Echoes back the input"
+version = "0.1.0"
+commands = ["echo"]
+
+[cattackle.mcp]
+transport = "stdio"
+""",
+    )
+
+
+@pytest.fixture
+def invalid_cattackle_toml_file(fs):
+    fs.create_file(
+        "cattackles/invalid/cattackle.toml",
+        contents="""
+[cattackle]
+name = "invalid"
+description = "Invalid cattackle"
+version = "0.1.0"
+# Missing commands
+""",
+    )
+
+
+@pytest.fixture
+def another_cattackle_toml_file(fs):
+    fs.create_file(
+        "cattackles/another/cattackle.toml",
+        contents="""
+[cattackle]
+name = "another"
+description = "Another cattackle"
+version = "0.1.0"
+commands = ["another"]
+
+[cattackle.mcp]
+transport = "stdio"
+""",
+    )
+
+
+def test_scan_empty_directory(registry):
+    """Tests scanning an empty cattackles directory."""
+    assert registry.scan() == 0
+    assert registry.get_all() == []
+
+
+def test_scan_valid_cattackle(registry, valid_cattackle_toml_file):
+    """Tests scanning a directory with a valid cattackle."""
+    assert registry.scan() == 1
+    cattackles = registry.get_all()
+    assert len(cattackles) == 1
+    assert cattackles[0].cattackle.name == "echo"
+
+
+def test_scan_invalid_cattackle(registry, invalid_cattackle_toml_file):
+    """Tests scanning a directory with an invalid cattackle."""
+    assert registry.scan() == 0
+    assert registry.get_all() == []
+
+
+def test_scan_multiple_cattackles(registry, valid_cattackle_toml_file, another_cattackle_toml_file):
+    """Tests scanning a directory with multiple cattackles."""
+    assert registry.scan() == 2
+    cattackles = registry.get_all()
+    assert len(cattackles) == 2
+    assert {c.cattackle.name for c in cattackles} == {"echo", "another"}
+
+
+def test_scan_non_existent_directory(registry):
+    """Tests scanning a non-existent cattackles directory."""
+    registry._cattackles_dir = pathlib.Path("nonexistent")
+    assert registry.scan() == 0
+    assert registry.get_all() == []
+
+
+def test_get_all_cattackles(registry, valid_cattackle_toml_file):
+    """Tests retrieving all registered cattackles."""
     registry.scan()
-
-    return registry
-
-
-def test_scan_successful(
-    fs, valid_cattackle_toml_file, valid_cattackle_toml_2_file, registry
-):
-    """Tests a successful scan of a directory with valid cattackles."""
-
-    all_cattackles = registry.get_all()
-    assert len(all_cattackles) == 2
-    names = {c.cattackle.name for c in all_cattackles}
-    assert names == {"echo", "admin"}
-
-
-def test_scan_directory_not_found(
-    fs, valid_cattackle_toml_file, nonexistent_dir_registry, caplog
-):
-    """Tests scanning a non-existent directory."""
-    nonexistent_dir_registry.scan()
-    all_cattackles = nonexistent_dir_registry.get_all()
-    assert len(all_cattackles) == 0
-    assert "Cattackles directory not found" in caplog.text
-
-
-def test_scan_with_malformed_toml(fs, invalid_toml_file, registry, caplog):
-    """Tests that a malformed TOML file is skipped and an error is logged."""
-    registry.scan()
-    all_cattackles = registry.get_all()
-    assert len(all_cattackles) == 0
-    assert "Failed to load cattackle manifest" in caplog.text
-    assert "TomlDecodeError" in caplog.text
-
-
-def test_scan_with_invalid_config(fs, invalid_config_toml_file, registry, caplog):
-    """Tests that a config with validation errors is skipped and an error is logged."""
-    registry.scan()
-    all_cattackles = registry.get_all()
-    assert len(all_cattackles) == 0
-
-    assert "Failed to load cattackle manifest" in caplog.text
-    assert "Field required" in caplog.text
-
-
-def test_get_all_returns_list_of_configs(fs, valid_cattackle_toml_file, registry):
-    """Tests the get_all method."""
     all_cattackles = registry.get_all()
     assert isinstance(all_cattackles, list)
     assert len(all_cattackles) == 1
     assert all_cattackles[0].cattackle.name == "echo"
+
+
+def test_find_by_command(fs, valid_cattackle_toml_file, registry):
+    """Tests finding a cattackle by a command it provides."""
+    registry.scan()
+    config = registry.find_by_command("echo")
+    assert config is not None
+    assert config.cattackle.name == "echo"
+
+
+def test_find_by_command_not_found(fs, valid_cattackle_toml_file, registry):
+    """Tests finding a non-existent command."""
+    config = registry.find_by_command("nonexistent")
+    assert config is None

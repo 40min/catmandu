@@ -1,10 +1,32 @@
-from typing import Any, Dict, Literal
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class StdioTransportConfig(BaseModel):
+    type: Literal["stdio"] = "stdio"
+    command: str
+    args: Optional[List[str]] = None
+    env: Optional[Dict[str, str]] = None
+    cwd: Optional[str] = None
+
+
+class WebSocketTransportConfig(BaseModel):
+    type: Literal["websocket"] = "websocket"
+    url: str
+    headers: Optional[Dict[str, str]] = None
+
+
+class HttpTransportConfig(BaseModel):
+    type: Literal["http"] = "http"
+    url: str
+    headers: Optional[Dict[str, str]] = None
 
 
 class McpConfig(BaseModel):
-    transport: Literal["stdio", "websocket", "http"]
+    transport: StdioTransportConfig | WebSocketTransportConfig | HttpTransportConfig = Field(discriminator="type")
+    timeout: Optional[float] = 30.0
+    max_retries: Optional[int] = 3
 
 
 class CommandsConfig(BaseModel):

@@ -2,9 +2,23 @@
 name = "echo"
 version = "0.1.0"
 description = "A simple cattackle that echoes back the payload."
+tags = ["utility", "testing"]
 
 [cattackle.commands]
 echo = { description = "Echoes back the given payload." }
+ping = { description = "Returns a pong response with timestamp." }
 
 [cattackle.mcp]
-transport = "stdio"
+timeout = 30.0
+max_retries = 3
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.echo.src.server"]
+env = { "PYTHONPATH" = ".", "LOG_LEVEL" = "INFO" }
+cwd = "."
+
+[cattackle.settings]
+max_payload_size = 1024
+enable_logging = true

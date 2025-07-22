@@ -1,0 +1,73 @@
+# Example STDIO Transport Configuration
+[cattackle]
+name = "echo"
+version = "0.1.0"
+description = "A simple cattackle that echoes back the payload."
+tags = ["utility", "testing"]
+
+[cattackle.commands]
+echo = { description = "Echoes back the given payload." }
+ping = { description = "Returns a pong response with timestamp." }
+
+[cattackle.mcp]
+timeout = 30.0
+max_retries = 3
+
+[cattackle.mcp.transport]
+type = "stdio"
+command = "python"
+args = ["-m", "cattackles.echo.src.server"]
+env = { "PYTHONPATH" = ".", "LOG_LEVEL" = "INFO" }
+cwd = "."
+
+[cattackle.settings]
+max_payload_size = 1024
+enable_logging = true
+
+# Example WebSocket Transport Configuration
+# [cattackle]
+# name = "echo-ws"
+# version = "0.1.0"
+# description = "A WebSocket-based echo cattackle."
+# tags = ["utility", "testing", "websocket"]
+#
+# [cattackle.commands]
+# echo = { description = "Echoes back the given payload." }
+# ping = { description = "Returns a pong response with timestamp." }
+#
+# [cattackle.mcp]
+# timeout = 30.0
+# max_retries = 3
+#
+# [cattackle.mcp.transport]
+# type = "websocket"
+# url = "ws://localhost:8080/mcp"
+# headers = { "Authorization" = "Bearer token" }
+#
+# [cattackle.settings]
+# max_payload_size = 1024
+# enable_logging = true
+
+# Example HTTP Transport Configuration
+# [cattackle]
+# name = "echo-http"
+# version = "0.1.0"
+# description = "An HTTP-based echo cattackle."
+# tags = ["utility", "testing", "http"]
+#
+# [cattackle.commands]
+# echo = { description = "Echoes back the given payload." }
+# ping = { description = "Returns a pong response with timestamp." }
+#
+# [cattackle.mcp]
+# timeout = 30.0
+# max_retries = 3
+#
+# [cattackle.mcp.transport]
+# type = "http"
+# url = "http://localhost:8080/mcp"
+# headers = { "Authorization" = "Bearer token" }
+#
+# [cattackle.settings]
+# max_payload_size = 1024
+# enable_logging = true
