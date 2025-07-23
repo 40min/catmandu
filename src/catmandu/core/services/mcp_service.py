@@ -6,11 +6,13 @@ retry logic, and response processing.
 """
 
 import asyncio
+import json
 from contextlib import AsyncExitStack
 from typing import Dict, Tuple
 
 import structlog
 from mcp import ClientSession
+from pydantic import ValidationError
 
 from catmandu.core.clients.mcp import McpClient
 from catmandu.core.errors import CattackleExecutionError
@@ -74,7 +76,14 @@ class McpService:
 
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:
-                    return CattackleResponse(data=response.content[0].text)
+                    response_text = response.content[0].text
+                    try:
+                        # Parse JSON response from cattackle
+                        response_data = json.loads(response_text)
+                        return CattackleResponse(data=response_data)
+                    except json.JSONDecodeError:
+                        # If it's not valid JSON, treat as plain text response
+                        return CattackleResponse(data={"text": response_text})
                 return CattackleResponse(data={})
 
             except asyncio.TimeoutError as e:
@@ -87,6 +96,15 @@ class McpService:
                     retry=retry_count + 1,
                     max_retries=max_retries,
                 )
+            except ValidationError as e:
+                # Validation errors are internal and shouldn't be retried
+                self.log.error(
+                    "Cattackle response validation failed",
+                    cattackle=cattackle_name,
+                    command=command,
+                    error=str(e),
+                )
+                raise CattackleExecutionError(f"Invalid response format from cattackle '{cattackle_name}': {e}") from e
             except Exception as e:
                 last_error = e
                 self.log.warning(

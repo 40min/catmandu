@@ -65,6 +65,7 @@ class MessageRouter:
             response = await self._mcp_service.execute_cattackle(
                 cattackle_config=cattackle_config, command=command, payload=payload
             )
+
             return chat_id, str(response.data)
         except CattackleExecutionError as e:
             self.log.error("Cattackle execution failed", error=e)
