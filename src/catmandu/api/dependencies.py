@@ -1,7 +1,9 @@
 from fastapi import Request
 
-from catmandu.core.clients import TelegramClient
-from catmandu.core.services import CattackleRegistry, McpService, MessageRouter
+from catmandu.core.clients.telegram import TelegramClient
+from catmandu.core.services.mcp_service import McpService
+from catmandu.core.services.registry import CattackleRegistry
+from catmandu.core.services.router import MessageRouter
 
 
 def get_cattackle_registry(request: Request) -> CattackleRegistry:

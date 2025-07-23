@@ -5,9 +5,13 @@ import structlog
 from fastapi import FastAPI
 
 from catmandu.api import admin, cattackles, health
-from catmandu.core.clients import McpClient, TelegramClient
+from catmandu.core.clients.mcp import McpClient
+from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
-from catmandu.core.services import CattackleRegistry, McpService, MessageRouter, TelegramPoller
+from catmandu.core.services.mcp_service import McpService
+from catmandu.core.services.poller import TelegramPoller
+from catmandu.core.services.registry import CattackleRegistry
+from catmandu.core.services.router import MessageRouter
 from catmandu.logging import configure_logging
 
 log = structlog.get_logger()

@@ -3,7 +3,7 @@ import pathlib
 
 import structlog
 
-from catmandu.core.clients import TelegramClient
+from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
 from catmandu.core.services.router import MessageRouter
 
