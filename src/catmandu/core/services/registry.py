@@ -12,6 +12,7 @@ from catmandu.core.models import CattackleConfig
 class CattackleRegistry:
     def __init__(self, config: Settings):
         self._cattackles_dir = pathlib.Path(config.cattackles_dir)
+        # Simple structure: cattackle_name -> config
         self._registry: Dict[str, CattackleConfig] = {}
 
         self.log = structlog.get_logger(self.__class__.__name__)
@@ -42,14 +43,22 @@ class CattackleRegistry:
 
             try:
                 manifest_data = toml.load(manifest_path)
-                config = CattackleConfig.model_validate(manifest_data)
-                cattackle_name = config.cattackle.name
-                if cattackle_name in self._registry:
-                    self.log.warning("Duplicate cattackle found, overwriting", name=cattackle_name)
+                # Update to handle the flattened structure
+                if "cattackle" in manifest_data:
+                    config_data = manifest_data["cattackle"]
+                    config = CattackleConfig.model_validate(config_data)
+                else:
+                    config = CattackleConfig.model_validate(manifest_data)
 
+                cattackle_name = config.name
                 self._registry[cattackle_name] = config
 
-                self.log.info("Registered cattackle", name=cattackle_name, path=str(manifest_path))
+                self.log.info(
+                    "Registered cattackle",
+                    name=cattackle_name,
+                    commands=list(config.commands.keys()),
+                    path=str(manifest_path),
+                )
             except (toml.TomlDecodeError, ValidationError) as e:
                 self.log.error(
                     "Failed to load cattackle manifest",
@@ -61,11 +70,33 @@ class CattackleRegistry:
         return len(self._registry)
 
     def get_all(self) -> List[CattackleConfig]:
+        """Returns all cattackle configurations."""
         return list(self._registry.values())
 
     def find_by_command(self, command: str) -> CattackleConfig | None:
         """Finds a cattackle that provides a given command."""
         for config in self._registry.values():
-            if command in config.cattackle.commands:
+            if command in config.commands:
                 return config
         return None
+
+    def find_by_cattackle_and_command(self, cattackle_name: str, command: str) -> CattackleConfig | None:
+        """Finds a specific cattackle by name and command."""
+        if cattackle_name in self._registry:
+            config = self._registry[cattackle_name]
+            if command in config.commands:
+                return config
+        return None
+
+    def get_commands_for_cattackle(self, cattackle_name: str) -> List[str]:
+        """Returns all commands available for a specific cattackle."""
+        if cattackle_name in self._registry:
+            return list(self._registry[cattackle_name].commands.keys())
+        return []
+
+    def get_all_commands(self) -> Dict[str, List[str]]:
+        """Returns all commands grouped by cattackle name."""
+        result = {}
+        for cattackle_name, config in self._registry.items():
+            result[cattackle_name] = list(config.commands.keys())
+        return result

@@ -33,16 +33,12 @@ class CommandsConfig(BaseModel):
     description: str
 
 
-class CattackleDetails(BaseModel):
+class CattackleConfig(BaseModel):
     name: str
     version: str
     description: str
     commands: Dict[str, CommandsConfig]
     mcp: McpConfig
-
-
-class CattackleConfig(BaseModel):
-    cattackle: CattackleDetails
 
 
 class CattackleRequest(BaseModel):

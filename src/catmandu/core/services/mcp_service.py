@@ -49,10 +49,10 @@ class McpService:
         Raises:
             CattackleExecutionError: If the execution fails or times out
         """
-        cattackle_name = cattackle_config.cattackle.name
-        transport_config = cattackle_config.cattackle.mcp.transport
-        timeout = cattackle_config.cattackle.mcp.timeout
-        max_retries = cattackle_config.cattackle.mcp.max_retries
+        cattackle_name = cattackle_config.name
+        transport_config = cattackle_config.mcp.transport
+        timeout = cattackle_config.mcp.timeout
+        max_retries = cattackle_config.mcp.max_retries
 
         self.log.info(
             "Executing cattackle",
@@ -130,7 +130,7 @@ class McpService:
 
     async def _get_or_create_session(self, cattackle_config: CattackleConfig) -> ClientSession:
         """Get existing session or create a new one for the cattackle."""
-        cattackle_name = cattackle_config.cattackle.name
+        cattackle_name = cattackle_config.name
 
         # Check if we have an active session
         if cattackle_name in self._active_contexts:
@@ -143,7 +143,7 @@ class McpService:
                 await self.close_session(cattackle_name)
 
         # Create new session
-        transport_config = cattackle_config.cattackle.mcp.transport
+        transport_config = cattackle_config.mcp.transport
         exit_stack, session = await self.mcp_client.create_session(transport_config)
         self._active_contexts[cattackle_name] = (exit_stack, session)
         return session

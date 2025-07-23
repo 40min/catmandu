@@ -28,15 +28,37 @@ class MessageRouter:
             return None
 
         parts = text.split(" ", 1)
-        command = parts[0][1:]
+        full_command = parts[0][1:]  # Remove the '/' prefix
         payload_str = parts[1] if len(parts) > 1 else ""
 
-        self.log.info("Processing command", command=command, chat_id=chat_id)
+        # Parse cattackle_command format
+        if "_" in full_command:
+            cattackle_name, command = full_command.split("_", 1)
+        else:
+            # Fallback to old behavior for backward compatibility
+            cattackle_name = None
+            command = full_command
 
-        cattackle_config = self._registry.find_by_command(command)
+        self.log.info(
+            "Processing command",
+            full_command=full_command,
+            cattackle_name=cattackle_name,
+            command=command,
+            chat_id=chat_id,
+        )
+
+        # Use the new method to find by cattackle and command
+        if cattackle_name:
+            cattackle_config = self._registry.find_by_cattackle_and_command(cattackle_name, command)
+        else:
+            # Fallback to find by command only
+            cattackle_config = self._registry.find_by_command(command)
+
         if not cattackle_config:
-            self.log.warning("Command not found", command=command)
-            return chat_id, f"Command not found: {command}"
+            self.log.warning(
+                "Command not found", full_command=full_command, cattackle_name=cattackle_name, command=command
+            )
+            return chat_id, f"Command not found: {full_command}"
 
         try:
             payload = {"text": payload_str, "message": message}

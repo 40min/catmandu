@@ -11,7 +11,6 @@ from catmandu.core.clients.mcp import McpClient
 from catmandu.core.errors import CattackleExecutionError
 from catmandu.core.models import (
     CattackleConfig,
-    CattackleDetails,
     CommandsConfig,
     McpConfig,
     StdioTransportConfig,
@@ -35,26 +34,24 @@ def mcp_service(mcp_client):
 def cattackle_config():
     """Create a sample cattackle configuration for testing."""
     return CattackleConfig(
-        cattackle=CattackleDetails(
-            name="test-cattackle",
-            version="0.1.0",
-            description="Test cattackle",
-            commands={
-                "echo": CommandsConfig(description="Echo command"),
-                "ping": CommandsConfig(description="Ping command"),
-            },
-            mcp=McpConfig(
-                transport=StdioTransportConfig(
-                    type="stdio",
-                    command="python",
-                    args=["-m", "test.server"],
-                    env={"TEST": "true"},
-                    cwd=".",
-                ),
-                timeout=10.0,
-                max_retries=2,
+        name="test-cattackle",
+        version="0.1.0",
+        description="Test cattackle",
+        commands={
+            "echo": CommandsConfig(description="Echo command"),
+            "ping": CommandsConfig(description="Ping command"),
+        },
+        mcp=McpConfig(
+            transport=StdioTransportConfig(
+                type="stdio",
+                command="python",
+                args=["-m", "test.server"],
+                env={"TEST": "true"},
+                cwd=".",
             ),
-        )
+            timeout=10.0,
+            max_retries=2,
+        ),
     )
 
 
@@ -80,7 +77,7 @@ async def test_execute_cattackle_success(mcp_service, mcp_client, cattackle_conf
 
         # Verify client was called correctly
         mcp_client.call_tool.assert_called_once_with(
-            mock_session, "echo", {"payload": {"message": "test"}}, cattackle_config.cattackle.mcp.timeout
+            mock_session, "echo", {"payload": {"message": "test"}}, cattackle_config.mcp.timeout
         )
 
 
@@ -134,7 +131,7 @@ async def test_execute_cattackle_all_retries_fail(mcp_service, mcp_client, catta
                 )
 
             # Verify client was called max_retries + 1 times (initial + retries)
-            assert mcp_client.call_tool.call_count == cattackle_config.cattackle.mcp.max_retries + 1
+            assert mcp_client.call_tool.call_count == cattackle_config.mcp.max_retries + 1
 
 
 @pytest.mark.asyncio
@@ -145,7 +142,7 @@ async def test_get_or_create_session_existing(mcp_service, mcp_client, cattackle
     mock_exit_stack = AsyncMock(spec=AsyncExitStack)
 
     # Add to active contexts
-    mcp_service._active_contexts[cattackle_config.cattackle.name] = (mock_exit_stack, mock_session)
+    mcp_service._active_contexts[cattackle_config.name] = (mock_exit_stack, mock_session)
 
     # Mock health check to return True (session is healthy)
     mcp_client.check_session_health.return_value = True
@@ -173,7 +170,7 @@ async def test_get_or_create_session_unhealthy(mcp_service, mcp_client, cattackl
     new_exit_stack = AsyncMock(spec=AsyncExitStack)
 
     # Add old session to active contexts
-    mcp_service._active_contexts[cattackle_config.cattackle.name] = (old_exit_stack, old_session)
+    mcp_service._active_contexts[cattackle_config.name] = (old_exit_stack, old_session)
 
     # Mock health check to return False (session is unhealthy)
     mcp_client.check_session_health.return_value = False
@@ -192,7 +189,7 @@ async def test_get_or_create_session_unhealthy(mcp_service, mcp_client, cattackl
 
     # We can't easily verify close_session was called directly
     # Instead, let's verify that create_session was called, which implies close_session was called
-    mcp_client.create_session.assert_called_with(cattackle_config.cattackle.mcp.transport)
+    mcp_client.create_session.assert_called_with(cattackle_config.mcp.transport)
 
 
 @pytest.mark.asyncio
@@ -212,10 +209,10 @@ async def test_get_or_create_session_new(mcp_service, mcp_client, cattackle_conf
     assert session is mock_session
 
     # Verify create_session was called
-    mcp_client.create_session.assert_called_once_with(cattackle_config.cattackle.mcp.transport)
+    mcp_client.create_session.assert_called_once_with(cattackle_config.mcp.transport)
 
     # Verify session was stored in active contexts
-    assert mcp_service._active_contexts[cattackle_config.cattackle.name] == (mock_exit_stack, mock_session)
+    assert mcp_service._active_contexts[cattackle_config.name] == (mock_exit_stack, mock_session)
 
 
 @pytest.mark.asyncio
