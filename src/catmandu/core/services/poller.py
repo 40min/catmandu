@@ -3,21 +3,21 @@ import pathlib
 
 import structlog
 
+from catmandu.core.clients import TelegramClient
 from catmandu.core.config import Settings
 from catmandu.core.services.router import MessageRouter
-from catmandu.core.services.telegram import TelegramService
 
 
 class TelegramPoller:
     def __init__(
         self,
         router: MessageRouter,
-        telegram_service: TelegramService,
+        telegram_client: TelegramClient,
         settings: Settings,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
         self._router = router
-        self._telegram = telegram_service
+        self._telegram = telegram_client
         self._offset_file = pathlib.Path(settings.update_id_file_path)
         self._offset: int | None = None
         self._should_stop = asyncio.Event()

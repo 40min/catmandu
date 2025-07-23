@@ -26,7 +26,7 @@ def mock_telegram_service():
 @pytest.fixture
 def mock_mcp_client_manager():
     manager = AsyncMock()
-    manager.call.return_value = CattackleResponse(data={"text": "Echo: Hello World"})
+    manager.execute_cattackle.return_value = CattackleResponse(data={"text": "Echo: Hello World"})
     return manager
 
 
@@ -45,9 +45,9 @@ def app_test_with_mocks(
     # Initialize services manually since lifespan doesn't run in tests
     settings = Settings()
     message_router = MessageRouter(
-        mcp_client_manager=mock_mcp_client_manager, cattackle_registry=test_registry_with_cattackles
+        mcp_service=mock_mcp_client_manager, cattackle_registry=test_registry_with_cattackles
     )
-    poller = TelegramPoller(router=message_router, telegram_service=mock_telegram_service, settings=settings)
+    poller = TelegramPoller(router=message_router, telegram_client=mock_telegram_service, settings=settings)
 
     # Store services in app state
     app_test.state.cattackle_registry = test_registry_with_cattackles
@@ -69,9 +69,11 @@ async def test_end_to_end_message_flow(app_test_with_mocks):
 
     # Assertions
     mock_telegram_service.get_updates.assert_called_once()
-    mock_mcp_client_manager.call.assert_called_once()
 
-    call_args = mock_mcp_client_manager.call.call_args
+    # In the refactored code, we're using execute_cattackle instead of call
+    mock_mcp_client_manager.execute_cattackle.assert_called_once()
+
+    call_args = mock_mcp_client_manager.execute_cattackle.call_args
     assert call_args.kwargs["command"] == "echo"
     assert call_args.kwargs["payload"]["text"] == "Hello World"
 

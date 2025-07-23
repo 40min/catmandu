@@ -1,18 +1,18 @@
 import structlog
 
 from catmandu.core.errors import CattackleExecutionError
-from catmandu.core.services.mcp_client import McpClientManager
+from catmandu.core.services.mcp_service import McpService
 from catmandu.core.services.registry import CattackleRegistry
 
 
 class MessageRouter:
     def __init__(
         self,
-        mcp_client_manager: McpClientManager,
+        mcp_service: McpService,
         cattackle_registry: CattackleRegistry,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
-        self._mcp_client = mcp_client_manager
+        self._mcp_service = mcp_service
         self._registry = cattackle_registry
 
     async def process_update(self, update: dict) -> tuple[int, str] | None:
@@ -40,7 +40,9 @@ class MessageRouter:
 
         try:
             payload = {"text": payload_str, "message": message}
-            response = await self._mcp_client.call(cattackle_config=cattackle_config, command=command, payload=payload)
+            response = await self._mcp_service.execute_cattackle(
+                cattackle_config=cattackle_config, command=command, payload=payload
+            )
             return chat_id, str(response.data)
         except CattackleExecutionError as e:
             self.log.error("Cattackle execution failed", error=e)
