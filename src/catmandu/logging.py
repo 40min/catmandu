@@ -7,7 +7,7 @@ import structlog
 def configure_logging():
     """Configures structlog logging."""
     logging.basicConfig(
-        format="%(message)s",
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         stream=sys.stdout,
         level=logging.INFO,
     )

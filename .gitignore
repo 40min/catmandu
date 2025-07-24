@@ -170,3 +170,6 @@ pyrightconfig.json
 
 .kiro/
 .roo/
+
+# Application data directory
+.data/
