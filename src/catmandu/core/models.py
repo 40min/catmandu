@@ -48,3 +48,4 @@ class CattackleRequest(BaseModel):
 
 class CattackleResponse(BaseModel):
     data: str
+    error: Optional[str] = None

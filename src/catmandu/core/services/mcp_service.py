@@ -6,6 +6,7 @@ retry logic, and response processing.
 """
 
 import asyncio
+import json
 from contextlib import AsyncExitStack
 from typing import Dict, Tuple
 
@@ -76,8 +77,26 @@ class McpService:
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:
                     response_text = response.content[0].text
-                    return CattackleResponse(data=response_text)
-                return CattackleResponse(data="")
+
+                    # Parse as JSON - all cattackles must return JSON responses
+                    try:
+                        parsed_response = json.loads(response_text)
+                        return CattackleResponse(
+                            data=parsed_response.get("data", ""), error=parsed_response.get("error")
+                        )
+                    except (json.JSONDecodeError, TypeError) as e:
+                        self.log.error(
+                            "Cattackle returned invalid JSON response",
+                            cattackle=cattackle_name,
+                            command=command,
+                            response=response_text,
+                            error=str(e),
+                        )
+                        raise CattackleExecutionError(
+                            f"Cattackle '{cattackle_name}' returned invalid JSON response: {e}"
+                        ) from e
+
+                return CattackleResponse(data="", error="Empty response from cattackle")
 
             except asyncio.TimeoutError as e:
                 last_error = e

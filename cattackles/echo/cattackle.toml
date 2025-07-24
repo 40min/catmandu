@@ -7,6 +7,7 @@ tags = ["utility", "testing"]
 [cattackle.commands]
 echo = { description = "Echoes back the given text. Usage: /echo_echo <your text>" }
 ping = { description = "Returns a simple pong response." }
+divide = { description = "Divides two numbers. Usage: /echo_divide <number1> <number2>" }
 
 [cattackle.mcp]
 timeout = 30.0

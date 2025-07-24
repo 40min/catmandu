@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any, Dict
@@ -26,18 +27,20 @@ async def echo(text: str, message: Dict[str, Any]) -> str:
         message: The Telegram message metadata
 
     Returns:
-        The text to echo back to the user
+        JSON string with data and error fields
     """
     logger.info(f"Received echo request with text: {text}, message: {message}")
 
     # If no text provided, return a helpful message
     if not text.strip():
-        result = "Please provide some text to echo. Usage: /echo_echo <your text>"
+        data = "Please provide some text to echo. Usage: /echo_echo <your text>"
     else:
-        result = text
+        data = text
 
-    logger.info(f"Sending echo response: {result}")
-    return result
+    response = json.dumps({"data": data, "error": None})
+
+    logger.info(f"Sending echo response: {response}")
+    return response
 
 
 @mcp.tool("ping")
@@ -50,14 +53,58 @@ async def ping(text: str, message: Dict[str, Any]) -> str:
         message: The Telegram message metadata (ignored)
 
     Returns:
-        A pong response
+        JSON string with pong response
     """
     logger.info(f"Received ping request with text: {text}, message: {message}")
 
-    result = "pong"
+    response = json.dumps({"data": "pong", "error": None})
 
-    logger.info(f"Sending ping response: {result}")
-    return result
+    logger.info(f"Sending ping response: {response}")
+    return response
+
+
+@mcp.tool("divide")
+async def divide(text: str, message: Dict[str, Any]) -> str:
+    """
+    Divides two numbers from the text input.
+
+    Args:
+        text: Two numbers separated by space (e.g., "10 2")
+        message: The Telegram message metadata
+
+    Returns:
+        JSON string with result or error
+    """
+    logger.info(f"Received divide request with text: {text}, message: {message}")
+
+    try:
+        # Parse the input
+        parts = text.strip().split()
+        if len(parts) != 2:
+            return json.dumps(
+                {"data": "", "error": "Please provide exactly two numbers separated by space. Usage: /echo_divide 10 2"}
+            )
+
+        try:
+            num1 = float(parts[0])
+            num2 = float(parts[1])
+        except ValueError:
+            return json.dumps({"data": "", "error": "Invalid numbers provided. Please use valid numeric values."})
+
+        # Check for division by zero
+        if num2 == 0:
+            return json.dumps({"data": "", "error": "Cannot divide by zero!"})
+
+        # Perform division
+        result = num1 / num2
+        response = json.dumps({"data": f"{num1} ÷ {num2} = {result}", "error": None})
+
+        logger.info(f"Sending divide response: {response}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Unexpected error in divide: {e}")
+        return json.dumps({"data": "", "error": f"An unexpected error occurred: {str(e)}"})
 
 
 if __name__ == "__main__":

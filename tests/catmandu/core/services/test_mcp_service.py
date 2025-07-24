@@ -58,10 +58,10 @@ def cattackle_config():
 @pytest.mark.asyncio
 async def test_execute_cattackle_success(mcp_service, mcp_client, cattackle_config):
     """Test successful cattackle execution."""
-    # Mock session and response
+    # Mock session and response with proper JSON format
     mock_session = AsyncMock(spec=ClientSession)
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"result": "success"}')]
+    mock_response.content = [MagicMock(text='{"data": "success", "error": null}')]
 
     # Setup mocks
     mcp_client.call_tool.return_value = mock_response
@@ -72,8 +72,9 @@ async def test_execute_cattackle_success(mcp_service, mcp_client, cattackle_conf
             cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
         )
 
-        # Verify response (now treated as plain text)
-        assert response.data == '{"result": "success"}'
+        # Verify response is parsed correctly
+        assert response.data == "success"
+        assert response.error is None
 
         # Verify client was called correctly (without payload wrapping)
         mcp_client.call_tool.assert_called_once_with(
@@ -89,7 +90,7 @@ async def test_execute_cattackle_timeout_with_retry(mcp_service, mcp_client, cat
 
     # Setup mocks - first call times out, second call succeeds
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"result": "success after retry"}')]
+    mock_response.content = [MagicMock(text='{"data": "success after retry", "error": null}')]
     mcp_client.call_tool.side_effect = [
         asyncio.TimeoutError(),  # First call times out
         mock_response,  # Second call succeeds
@@ -102,8 +103,9 @@ async def test_execute_cattackle_timeout_with_retry(mcp_service, mcp_client, cat
                 cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
             )
 
-            # Verify response from second (successful) call (now treated as plain text)
-            assert response.data == '{"result": "success after retry"}'
+            # Verify response from second (successful) call is parsed correctly
+            assert response.data == "success after retry"
+            assert response.error is None
 
             # Verify client was called twice
             assert mcp_client.call_tool.call_count == 2
@@ -264,7 +266,7 @@ async def test_close_all_sessions(mcp_service):
 
 @pytest.mark.asyncio
 async def test_execute_cattackle_non_json_response(mcp_service, mcp_client, cattackle_config):
-    """Test cattackle execution with non-JSON response."""
+    """Test cattackle execution with non-JSON response raises error."""
     # Mock session and response with plain text
     mock_session = AsyncMock(spec=ClientSession)
     mock_response = MagicMock()
@@ -275,21 +277,19 @@ async def test_execute_cattackle_non_json_response(mcp_service, mcp_client, catt
 
     # Mock _get_or_create_session to return our mock session
     with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
-        response = await mcp_service.execute_cattackle(
-            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
-        )
-
-    # Verify response contains the plain text directly
-    assert response.data == "Plain text response"
+        with pytest.raises(CattackleExecutionError, match="returned invalid JSON response"):
+            await mcp_service.execute_cattackle(
+                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            )
 
 
 @pytest.mark.asyncio
 async def test_execute_cattackle_json_response(mcp_service, mcp_client, cattackle_config):
     """Test cattackle execution with valid JSON response."""
-    # Mock session and response with JSON
+    # Mock session and response with proper JSON format
     mock_session = AsyncMock(spec=ClientSession)
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"message": "Hello", "status": "ok"}')]
+    mock_response.content = [MagicMock(text='{"data": "Hello", "error": null}')]
 
     # Setup mocks
     mcp_client.call_tool.return_value = mock_response
@@ -300,5 +300,28 @@ async def test_execute_cattackle_json_response(mcp_service, mcp_client, cattackl
             cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
         )
 
-    # Verify response is treated as plain text (no JSON parsing)
-    assert response.data == '{"message": "Hello", "status": "ok"}'
+    # Verify response is parsed correctly
+    assert response.data == "Hello"
+    assert response.error is None
+
+
+@pytest.mark.asyncio
+async def test_execute_cattackle_json_error_response(mcp_service, mcp_client, cattackle_config):
+    """Test cattackle execution with JSON error response."""
+    # Mock session and response with error
+    mock_session = AsyncMock(spec=ClientSession)
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text='{"data": "", "error": "Something went wrong"}')]
+
+    # Setup mocks
+    mcp_client.call_tool.return_value = mock_response
+
+    # Mock _get_or_create_session to return our mock session
+    with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
+        response = await mcp_service.execute_cattackle(
+            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+        )
+
+    # Verify error response is parsed correctly
+    assert response.data == ""
+    assert response.error == "Something went wrong"
