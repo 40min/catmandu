@@ -26,7 +26,7 @@ def mock_telegram_service():
 @pytest.fixture
 def mock_mcp_client_manager():
     manager = AsyncMock()
-    manager.execute_cattackle.return_value = CattackleResponse(data={"text": "Echo: Hello World"})
+    manager.execute_cattackle.return_value = CattackleResponse(data="Echo: Hello World")
     return manager
 
 
@@ -77,4 +77,4 @@ async def test_end_to_end_message_flow(app_test_with_mocks):
     assert call_args.kwargs["command"] == "echo"
     assert call_args.kwargs["payload"]["text"] == "Hello World"
 
-    mock_telegram_service.send_message.assert_called_once_with(789, "{'text': 'Echo: Hello World'}")
+    mock_telegram_service.send_message.assert_called_once_with(789, "Echo: Hello World")

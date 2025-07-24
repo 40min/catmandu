@@ -6,7 +6,6 @@ retry logic, and response processing.
 """
 
 import asyncio
-import json
 from contextlib import AsyncExitStack
 from typing import Dict, Tuple
 
@@ -72,19 +71,13 @@ class McpService:
                 session = await self._get_or_create_session(cattackle_config)
 
                 # Call the tool with timeout
-                response = await self.mcp_client.call_tool(session, command, {"payload": payload}, timeout)
+                response = await self.mcp_client.call_tool(session, command, payload, timeout)
 
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:
                     response_text = response.content[0].text
-                    try:
-                        # Parse JSON response from cattackle
-                        response_data = json.loads(response_text)
-                        return CattackleResponse(data=response_data)
-                    except json.JSONDecodeError:
-                        # If it's not valid JSON, treat as plain text response
-                        return CattackleResponse(data={"text": response_text})
-                return CattackleResponse(data={})
+                    return CattackleResponse(data=response_text)
+                return CattackleResponse(data="")
 
             except asyncio.TimeoutError as e:
                 last_error = e

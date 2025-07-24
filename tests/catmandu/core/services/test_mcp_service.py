@@ -72,12 +72,12 @@ async def test_execute_cattackle_success(mcp_service, mcp_client, cattackle_conf
             cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
         )
 
-        # Verify response
-        assert response.data == {"result": "success"}
+        # Verify response (now treated as plain text)
+        assert response.data == '{"result": "success"}'
 
-        # Verify client was called correctly
+        # Verify client was called correctly (without payload wrapping)
         mcp_client.call_tool.assert_called_once_with(
-            mock_session, "echo", {"payload": {"message": "test"}}, cattackle_config.mcp.timeout
+            mock_session, "echo", {"message": "test"}, cattackle_config.mcp.timeout
         )
 
 
@@ -102,8 +102,8 @@ async def test_execute_cattackle_timeout_with_retry(mcp_service, mcp_client, cat
                 cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
             )
 
-            # Verify response from second (successful) call
-            assert response.data == {"result": "success after retry"}
+            # Verify response from second (successful) call (now treated as plain text)
+            assert response.data == '{"result": "success after retry"}'
 
             # Verify client was called twice
             assert mcp_client.call_tool.call_count == 2
@@ -279,9 +279,8 @@ async def test_execute_cattackle_non_json_response(mcp_service, mcp_client, catt
             cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
         )
 
-    # Verify response is wrapped in a dict with "text" key
-    assert response.data == {"text": "Plain text response"}
-    assert response.error is None
+    # Verify response contains the plain text directly
+    assert response.data == "Plain text response"
 
 
 @pytest.mark.asyncio
@@ -301,6 +300,5 @@ async def test_execute_cattackle_json_response(mcp_service, mcp_client, cattackl
             cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
         )
 
-    # Verify response is parsed as JSON
-    assert response.data == {"message": "Hello", "status": "ok"}
-    assert response.error is None
+    # Verify response is treated as plain text (no JSON parsing)
+    assert response.data == '{"message": "Hello", "status": "ok"}'

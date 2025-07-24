@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 from typing import Any, Dict
 
 from mcp.server.fastmcp import FastMCP
@@ -18,47 +17,44 @@ mcp = FastMCP("Echo", description="Echo cattackle", version="0.1.0")
 
 
 @mcp.tool("echo")
-async def echo(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def echo(text: str, message: Dict[str, Any]) -> str:
     """
-    Echoes back the payload.
+    Echoes back the text from the payload.
 
     Args:
-        payload: The data to echo back
+        text: The text to echo
+        message: The Telegram message metadata
 
     Returns:
-        The same payload with an added timestamp
+        The text to echo back to the user
     """
-    logger.info(f"Received echo request with payload: {payload}")
+    logger.info(f"Received echo request with text: {text}, message: {message}")
 
-    # Get max payload size from settings
-    max_size = 1024  # Default value
-
-    # Check payload size if needed
-    payload_size = len(str(payload))
-    if payload_size > max_size:
-        logger.warning(f"Payload size ({payload_size}) exceeds maximum ({max_size})")
-
-    # Add metadata to response
-    result = {**payload, "metadata": {"timestamp": time.time(), "size": payload_size}}
+    # If no text provided, return a helpful message
+    if not text.strip():
+        result = "Please provide some text to echo. Usage: /echo_echo <your text>"
+    else:
+        result = text
 
     logger.info(f"Sending echo response: {result}")
     return result
 
 
 @mcp.tool("ping")
-async def ping(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def ping(text: str, message: Dict[str, Any]) -> str:
     """
-    Returns a pong response with timestamp.
+    Returns a simple pong response.
 
     Args:
-        payload: Optional parameters
+        text: Optional text (ignored)
+        message: The Telegram message metadata (ignored)
 
     Returns:
-        A pong response with timestamp
+        A pong response
     """
-    logger.info(f"Received ping request with payload: {payload}")
+    logger.info(f"Received ping request with text: {text}, message: {message}")
 
-    result = {"response": "pong", "timestamp": time.time(), "payload": payload}
+    result = "pong"
 
     logger.info(f"Sending ping response: {result}")
     return result

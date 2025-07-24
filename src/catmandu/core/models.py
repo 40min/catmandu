@@ -47,5 +47,4 @@ class CattackleRequest(BaseModel):
 
 
 class CattackleResponse(BaseModel):
-    data: Dict[str, Any]
-    error: str | None = None
+    data: str

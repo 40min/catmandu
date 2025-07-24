@@ -5,8 +5,8 @@ description = "A simple cattackle that echoes back the payload."
 tags = ["utility", "testing"]
 
 [cattackle.commands]
-echo = { description = "Echoes back the given payload." }
-ping = { description = "Returns a pong response with timestamp." }
+echo = { description = "Echoes back the given text. Usage: /echo_echo <your text>" }
+ping = { description = "Returns a simple pong response." }
 
 [cattackle.mcp]
 timeout = 30.0
