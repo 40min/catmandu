@@ -7,7 +7,7 @@ import pytest
 # Add the cattackle src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from server import divide, echo, ping  # noqa
+from server import echo, joke, ping  # noqa
 
 
 @pytest.mark.asyncio
@@ -63,52 +63,44 @@ async def test_ping_command():
 
 
 @pytest.mark.asyncio
-async def test_divide_command_success():
-    """Tests that the divide command works correctly with valid input."""
-    text = "10 2"
+async def test_joke_command_empty_text():
+    """Tests that the joke command handles empty text gracefully."""
+    text = ""
     message = {"chat": {"id": 123}}
-    result = await divide(text, message)
-
-    # Parse the JSON response
-    parsed = json.loads(result)
-    assert parsed["data"] == "10.0 ÷ 2.0 = 5.0"
-    assert parsed["error"] is None
-
-
-@pytest.mark.asyncio
-async def test_divide_command_division_by_zero():
-    """Tests that the divide command handles division by zero."""
-    text = "10 0"
-    message = {"chat": {"id": 123}}
-    result = await divide(text, message)
+    result = await joke(text, message)
 
     # Parse the JSON response
     parsed = json.loads(result)
     assert parsed["data"] == ""
-    assert parsed["error"] == "Cannot divide by zero!"
+    assert "Please provide some text to create a joke about" in parsed["error"]
 
 
 @pytest.mark.asyncio
-async def test_divide_command_invalid_input():
-    """Tests that the divide command handles invalid input."""
-    text = "not a number"
+async def test_joke_command_whitespace_text():
+    """Tests that the joke command handles whitespace-only text gracefully."""
+    text = "   "
     message = {"chat": {"id": 123}}
-    result = await divide(text, message)
+    result = await joke(text, message)
 
     # Parse the JSON response
     parsed = json.loads(result)
     assert parsed["data"] == ""
-    assert "Please provide exactly two numbers" in parsed["error"]
+    assert "Please provide some text to create a joke about" in parsed["error"]
 
 
 @pytest.mark.asyncio
-async def test_divide_command_invalid_numbers():
-    """Tests that the divide command handles non-numeric values."""
-    text = "abc def"
+async def test_joke_command_no_api_key():
+    """Tests that the joke command handles missing API key gracefully."""
+    # This test assumes no GEMINI_API_KEY is set in test environment
+    text = "cats"
     message = {"chat": {"id": 123}}
-    result = await divide(text, message)
+    result = await joke(text, message)
 
     # Parse the JSON response
     parsed = json.loads(result)
-    assert parsed["data"] == ""
-    assert "Invalid numbers provided" in parsed["error"]
+    # Should either work (if API key is set) or show error message
+    if parsed["error"]:
+        assert "not available" in parsed["error"] or "configure GEMINI_API_KEY" in parsed["error"]
+    else:
+        # If it works, should have some joke content
+        assert len(parsed["data"]) > 0

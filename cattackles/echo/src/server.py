@@ -3,7 +3,12 @@ import logging
 import os
 from typing import Any, Dict
 
+import google.generativeai as genai
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging based on environment variable
 log_level = os.environ.get("LOG_LEVEL", "INFO")
@@ -15,7 +20,18 @@ logging.basicConfig(
 logger = logging.getLogger("echo-cattackle")
 
 # Create FastMCP server
-mcp = FastMCP("Echo", description="Echo cattackle", version="0.1.0")
+mcp = FastMCP("Echo", description="Funny echo cattackle with AI joke generation", version="0.1.0")
+
+# Configure Gemini API
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+gemini_model = os.environ.get("GEMINI_MODEL")
+if gemini_api_key and gemini_model:
+    genai.configure(api_key=gemini_api_key)
+    model = genai.GenerativeModel(gemini_model)
+    logger.info("Gemini API configured successfully")
+else:
+    model = None
+    logger.warning("GEMINI_API_KEY not found in environment variables. Joke command will not work.")
 
 
 @mcp.tool("echo")
@@ -64,48 +80,56 @@ async def ping(text: str, message: Dict[str, Any]) -> str:
     return response
 
 
-@mcp.tool("divide")
-async def divide(text: str, message: Dict[str, Any]) -> str:
+@mcp.tool("joke")
+async def joke(text: str, message: Dict[str, Any]) -> str:
     """
-    Divides two numbers from the text input.
+    Generates a funny anekdot (short joke) about the provided text using LLM.
 
     Args:
-        text: Two numbers separated by space (e.g., "10 2")
+        text: The topic or text to create a joke about
         message: The Telegram message metadata
 
     Returns:
-        JSON string with result or error
+        JSON string with joke or error
     """
-    logger.info(f"Received divide request with text: {text}, message: {message}")
+    logger.info(f"Received joke request with text: {text}, message: {message}")
+
+    # Check input first
+    if not text.strip():
+        return json.dumps(
+            {"data": "", "error": "Please provide some text to create a joke about. Usage: /echo_joke <your topic>"}
+        )
+
+    # Then check if API is available
+    if not model:
+        return json.dumps(
+            {"data": "", "error": "Joke feature is not available. Please configure GEMINI_API_KEY in .env file."}
+        )
 
     try:
-        # Parse the input
-        parts = text.strip().split()
-        if len(parts) != 2:
-            return json.dumps(
-                {"data": "", "error": "Please provide exactly two numbers separated by space. Usage: /echo_divide 10 2"}
-            )
+        # Create a prompt for generating a short, funny anekdot
+        prompt = f"""Create a short, funny anekdot (joke) about: {text.strip()}
 
-        try:
-            num1 = float(parts[0])
-            num2 = float(parts[1])
-        except ValueError:
-            return json.dumps({"data": "", "error": "Invalid numbers provided. Please use valid numeric values."})
+The anekdot should be:
+- Short (1-3 sentences)
+- Funny and witty
+- Family-friendly
+- In the style of a classic anekdot or dad joke
+- Related to the topic: {text.strip()}
 
-        # Check for division by zero
-        if num2 == 0:
-            return json.dumps({"data": "", "error": "Cannot divide by zero!"})
+Just return the joke, no additional text."""
 
-        # Perform division
-        result = num1 / num2
-        response = json.dumps({"data": f"{num1} ÷ {num2} = {result}", "error": None})
+        # Generate the joke using Gemini
+        response_obj = model.generate_content(prompt)
+        joke_text = response_obj.text.strip()
 
-        logger.info(f"Sending divide response: {response}")
+        response = json.dumps({"data": joke_text, "error": None})
+        logger.info(f"Generated joke successfully for topic: {text}")
         return response
 
     except Exception as e:
-        logger.error(f"Unexpected error in divide: {e}")
-        return json.dumps({"data": "", "error": f"An unexpected error occurred: {str(e)}"})
+        logger.error(f"Error generating joke: {e}")
+        return json.dumps({"data": "", "error": f"Failed to generate joke: {str(e)}"})
 
 
 if __name__ == "__main__":

@@ -1,13 +1,13 @@
 [cattackle]
 name = "echo"
 version = "0.1.0"
-description = "A simple cattackle that echoes back the payload."
-tags = ["utility", "testing"]
+description = "A funny cattackle that echoes text and generates jokes using AI."
+tags = ["utility", "fun", "ai"]
 
 [cattackle.commands]
 echo = { description = "Echoes back the given text. Usage: /echo_echo <your text>" }
 ping = { description = "Returns a simple pong response." }
-divide = { description = "Divides two numbers. Usage: /echo_divide <number1> <number2>" }
+joke = { description = "Generates a funny anekdot about the given topic. Usage: /echo_joke <your topic>" }
 
 [cattackle.mcp]
 timeout = 30.0
