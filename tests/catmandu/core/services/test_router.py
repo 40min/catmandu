@@ -548,8 +548,10 @@ async def test_system_command_accumulator_status_single_message(router, accumula
 async def test_system_command_show_accumulator_long_messages(router, accumulator_manager):
     """Test /show_accumulator system command with long messages that get truncated for display."""
     # Pre-populate accumulator with long message (over 100 characters)
-    long_message = "This is a very long message that should be truncated for display purposes "
-    +"when shown to the user because it exceeds the limit"
+    long_message = (
+        "This is a very long message that should be truncated for display purposes "
+        "when shown to the user because it exceeds the limit"
+    )
     accumulator_manager.process_non_command_message(123, long_message)
 
     update = {"message": {"chat": {"id": 123}, "text": "/show_accumulator"}}
@@ -621,3 +623,119 @@ async def test_system_commands_do_not_route_to_mcp_service(router, mock_mcp_serv
 
     # Verify MCP service was never called for system commands
     mock_mcp_service.execute_cattackle.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_payload_format_backward_compatibility(router, mock_mcp_service, mock_registry, accumulator_manager):
+    """Test that payload format maintains backward compatibility with existing text and message fields."""
+    # Test command without accumulated parameters (empty accumulator)
+    update = {"message": {"chat": {"id": 123}, "text": "/echo_echo immediate text", "from": {"id": 456}}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    mock_mcp_service.execute_cattackle.assert_called_once()
+    call_args = mock_mcp_service.execute_cattackle.call_args
+    payload = call_args[1]["payload"]
+
+    # Verify backward compatibility - all original fields are present
+    assert "text" in payload
+    assert "message" in payload
+    assert payload["text"] == "immediate text"
+    assert payload["message"] == update["message"]
+
+    # Verify new field is present but empty (no accumulated messages)
+    assert "accumulated_params" in payload
+    assert payload["accumulated_params"] == []
+
+
+@pytest.mark.asyncio
+async def test_payload_format_with_accumulated_parameters_complete(
+    router, mock_mcp_service, mock_registry, accumulator_manager
+):
+    """Test complete payload format with both immediate text and accumulated parameters."""
+    # Pre-populate accumulator with multiple messages
+    accumulator_manager.process_non_command_message(123, "first accumulated")
+    accumulator_manager.process_non_command_message(123, "second accumulated")
+    accumulator_manager.process_non_command_message(123, "third accumulated")
+
+    # Send command with immediate text
+    message_obj = {
+        "chat": {"id": 123, "type": "private"},
+        "text": "/echo_echo immediate parameter",
+        "from": {"id": 456, "username": "testuser"},
+        "message_id": 789,
+    }
+    update = {"message": message_obj}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    mock_mcp_service.execute_cattackle.assert_called_once()
+    call_args = mock_mcp_service.execute_cattackle.call_args
+    payload = call_args[1]["payload"]
+
+    # Verify complete payload structure
+    assert len(payload) == 3  # Only text, message, and accumulated_params
+    assert payload["text"] == "immediate parameter"
+    assert payload["message"] == message_obj
+    assert payload["accumulated_params"] == ["first accumulated", "second accumulated", "third accumulated"]
+
+    # Verify accumulator was cleared after extraction
+    assert accumulator_manager._accumulator.get_messages(123) == []
+
+
+@pytest.mark.asyncio
+async def test_payload_format_empty_text_with_accumulated_parameters(
+    router, mock_mcp_service, mock_registry, accumulator_manager
+):
+    """Test payload format when command has no immediate text but has accumulated parameters."""
+    # Pre-populate accumulator
+    accumulator_manager.process_non_command_message(123, "only accumulated param")
+
+    # Send command without immediate text
+    update = {"message": {"chat": {"id": 123}, "text": "/echo_echo"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    mock_mcp_service.execute_cattackle.assert_called_once()
+    call_args = mock_mcp_service.execute_cattackle.call_args
+    payload = call_args[1]["payload"]
+
+    # Verify payload structure
+    assert payload["text"] == ""  # Empty string when no immediate text
+    assert payload["accumulated_params"] == ["only accumulated param"]
+    assert "message" in payload
+
+
+@pytest.mark.asyncio
+async def test_accumulator_cleared_after_parameter_extraction_regardless_of_execution_result(
+    router, mock_mcp_service, mock_registry, accumulator_manager
+):
+    """Test that accumulator is always cleared after parameter extraction, even if command execution fails."""
+    # Pre-populate accumulator
+    accumulator_manager.process_non_command_message(123, "param1")
+    accumulator_manager.process_non_command_message(123, "param2")
+
+    # Mock MCP service to raise an exception
+    from catmandu.core.errors import CattackleExecutionError
+
+    mock_mcp_service.execute_cattackle.side_effect = CattackleExecutionError("Test error")
+
+    update = {"message": {"chat": {"id": 123}, "text": "/echo_echo"}}
+
+    result = await router.process_update(update)
+
+    # Command should return error message
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "An error occurred while executing the command."
+
+    # Verify accumulator was still cleared despite the error
+    assert accumulator_manager._accumulator.get_messages(123) == []
+    assert (
+        accumulator_manager.get_accumulator_status(123)
+        == "📭 No messages accumulated. Send some messages and then use a command!"
+    )
