@@ -8,6 +8,8 @@ from catmandu.api import admin, cattackles, health
 from catmandu.core.clients.mcp import McpClient
 from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
+from catmandu.core.services.accumulator import MessageAccumulator
+from catmandu.core.services.accumulator_manager import AccumulatorManager
 from catmandu.core.services.mcp_service import McpService
 from catmandu.core.services.poller import TelegramPoller
 from catmandu.core.services.registry import CattackleRegistry
@@ -27,16 +29,26 @@ async def lifespan(app: FastAPI):
     telegram_client = TelegramClient(token=settings.telegram_bot_token)
     mcp_client = McpClient()
 
-    # Initialize services
+    # Initialize services in proper dependency order
     cattackle_registry = CattackleRegistry(config=settings)
     cattackle_registry.scan()
     mcp_service = McpService(mcp_client=mcp_client)
-    message_router = MessageRouter(mcp_service=mcp_service, cattackle_registry=cattackle_registry)
+
+    # Initialize accumulator services
+    message_accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
+    accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=True)
+
+    # Initialize router with accumulator manager dependency
+    message_router = MessageRouter(
+        mcp_service=mcp_service, cattackle_registry=cattackle_registry, accumulator_manager=accumulator_manager
+    )
     poller = TelegramPoller(router=message_router, telegram_client=telegram_client, settings=settings)
 
     # Store services in app state for DI
     app.state.cattackle_registry = cattackle_registry
     app.state.mcp_service = mcp_service
+    app.state.message_accumulator = message_accumulator
+    app.state.accumulator_manager = accumulator_manager
     app.state.message_router = message_router
     app.state.telegram_client = telegram_client
     app.state.poller = poller
