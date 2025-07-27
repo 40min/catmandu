@@ -92,10 +92,9 @@ class MessageRouter:
             # Extract accumulated parameters and clear accumulator
             accumulated_params = self._accumulator_manager.get_all_parameters_and_clear(chat_id)
 
-            # Create enhanced payload with accumulated parameters
+            # Create simplified payload with accumulated parameters
             payload = {
                 "text": payload_str,
-                "message": message,
                 "accumulated_params": accumulated_params,
             }
 

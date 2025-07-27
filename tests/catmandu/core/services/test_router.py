@@ -111,12 +111,14 @@ async def test_process_update_cattackle_command_format(router, mock_mcp_service,
         == "📭 No messages accumulated. Send some messages and then use a command!"
     )
 
-    # Verify MCP service was called with enhanced payload
+    # Verify MCP service was called with simplified payload
     mock_mcp_service.execute_cattackle.assert_called_once()
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
     assert "accumulated_params" in payload
     assert payload["accumulated_params"] == ["param1", "param2"]
+    assert "text" in payload
+    assert payload["text"] == "test message"
 
 
 @pytest.mark.asyncio
@@ -144,12 +146,14 @@ async def test_process_update_fallback_to_old_format(router, mock_mcp_service, m
         == "📭 No messages accumulated. Send some messages and then use a command!"
     )
 
-    # Verify MCP service was called with enhanced payload
+    # Verify MCP service was called with simplified payload
     mock_mcp_service.execute_cattackle.assert_called_once()
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
     assert "accumulated_params" in payload
     assert payload["accumulated_params"] == ["param1", "param2"]
+    assert "text" in payload
+    assert payload["text"] == "test message"
 
 
 @pytest.mark.asyncio
@@ -326,14 +330,13 @@ async def test_process_command_with_accumulated_parameters(
     chat_id, response = result
     assert chat_id == 123
 
-    # Verify MCP service was called with enhanced payload including accumulated_params
+    # Verify MCP service was called with simplified payload including accumulated_params
     mock_mcp_service.execute_cattackle.assert_called_once()
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
 
-    # Check payload structure
+    # Check simplified payload structure
     assert "text" in payload
-    assert "message" in payload
     assert "accumulated_params" in payload
     assert payload["accumulated_params"] == ["param1", "param2"]
     assert payload["text"] == ""  # No additional text after command
@@ -360,12 +363,12 @@ async def test_process_command_with_text_and_accumulated_parameters(
 
     assert result is not None
 
-    # Verify MCP service was called with enhanced payload
+    # Verify MCP service was called with simplified payload
     mock_mcp_service.execute_cattackle.assert_called_once()
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
 
-    # Check payload structure
+    # Check simplified payload structure
     assert payload["text"] == "immediate param"
     assert payload["accumulated_params"] == ["param1", "param2"]
 
@@ -439,6 +442,8 @@ async def test_enhanced_routing_logic_both_message_types(router, accumulator_man
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
     assert payload["accumulated_params"] == ["accumulated message"]
+    # Verify simplified payload structure
+    assert "text" in payload
 
 
 @pytest.mark.asyncio
@@ -626,8 +631,44 @@ async def test_system_commands_do_not_route_to_mcp_service(router, mock_mcp_serv
 
 
 @pytest.mark.asyncio
-async def test_payload_format_backward_compatibility(router, mock_mcp_service, mock_registry, accumulator_manager):
-    """Test that payload format maintains backward compatibility with existing text and message fields."""
+async def test_simplified_payload_structure_requirements(router, mock_mcp_service, mock_registry, accumulator_manager):
+    """Test that payload structure meets simplified requirements - only text and accumulated_params fields."""
+    # Pre-populate accumulator with test data
+    accumulator_manager.process_non_command_message(123, "accumulated message")
+
+    # Create a complex message object with many fields
+    complex_message = {
+        "chat": {"id": 123, "type": "private", "username": "testuser"},
+        "text": "/echo_echo immediate text",
+        "from": {"id": 456, "username": "sender", "first_name": "Test"},
+        "message_id": 789,
+        "date": 1234567890,
+        "entities": [{"type": "bot_command", "offset": 0, "length": 10}],
+    }
+    update = {"message": complex_message}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    mock_mcp_service.execute_cattackle.assert_called_once()
+    call_args = mock_mcp_service.execute_cattackle.call_args
+    payload = call_args[1]["payload"]
+
+    # Verify payload contains ONLY the required fields
+    assert len(payload) == 2, f"Payload should contain exactly 2 fields, got {len(payload)}: {list(payload.keys())}"
+    assert "text" in payload, "Payload must contain 'text' field"
+    assert "accumulated_params" in payload, "Payload must contain 'accumulated_params' field"
+
+    # Verify the "message" field is NOT present
+
+    # Verify field values are correct
+    assert payload["text"] == "immediate text"
+    assert payload["accumulated_params"] == ["accumulated message"]
+
+
+@pytest.mark.asyncio
+async def test_payload_format_simplified_structure(router, mock_mcp_service, mock_registry, accumulator_manager):
+    """Test that payload format uses simplified structure with only text and accumulated_params fields."""
     # Test command without accumulated parameters (empty accumulator)
     update = {"message": {"chat": {"id": 123}, "text": "/echo_echo immediate text", "from": {"id": 456}}}
 
@@ -638,22 +679,23 @@ async def test_payload_format_backward_compatibility(router, mock_mcp_service, m
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
 
-    # Verify backward compatibility - all original fields are present
+    # Verify simplified payload structure - only text and accumulated_params
     assert "text" in payload
-    assert "message" in payload
     assert payload["text"] == "immediate text"
-    assert payload["message"] == update["message"]
 
-    # Verify new field is present but empty (no accumulated messages)
+    # Verify accumulated_params field is present but empty (no accumulated messages)
     assert "accumulated_params" in payload
     assert payload["accumulated_params"] == []
+
+    # Verify payload only contains expected fields
+    assert len(payload) == 2
 
 
 @pytest.mark.asyncio
 async def test_payload_format_with_accumulated_parameters_complete(
     router, mock_mcp_service, mock_registry, accumulator_manager
 ):
-    """Test complete payload format with both immediate text and accumulated parameters."""
+    """Test complete simplified payload format with both immediate text and accumulated parameters."""
     # Pre-populate accumulator with multiple messages
     accumulator_manager.process_non_command_message(123, "first accumulated")
     accumulator_manager.process_non_command_message(123, "second accumulated")
@@ -675,10 +717,9 @@ async def test_payload_format_with_accumulated_parameters_complete(
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
 
-    # Verify complete payload structure
-    assert len(payload) == 3  # Only text, message, and accumulated_params
+    # Verify simplified payload structure
+    assert len(payload) == 2  # Only text and accumulated_params
     assert payload["text"] == "immediate parameter"
-    assert payload["message"] == message_obj
     assert payload["accumulated_params"] == ["first accumulated", "second accumulated", "third accumulated"]
 
     # Verify accumulator was cleared after extraction
@@ -689,7 +730,7 @@ async def test_payload_format_with_accumulated_parameters_complete(
 async def test_payload_format_empty_text_with_accumulated_parameters(
     router, mock_mcp_service, mock_registry, accumulator_manager
 ):
-    """Test payload format when command has no immediate text but has accumulated parameters."""
+    """Test simplified payload format when command has no immediate text but has accumulated parameters."""
     # Pre-populate accumulator
     accumulator_manager.process_non_command_message(123, "only accumulated param")
 
@@ -703,10 +744,10 @@ async def test_payload_format_empty_text_with_accumulated_parameters(
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
 
-    # Verify payload structure
+    # Verify simplified payload structure
     assert payload["text"] == ""  # Empty string when no immediate text
     assert payload["accumulated_params"] == ["only accumulated param"]
-    assert "message" in payload
+    assert len(payload) == 2  # Only text and accumulated_params
 
 
 @pytest.mark.asyncio

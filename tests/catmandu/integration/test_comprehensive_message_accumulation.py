@@ -152,7 +152,7 @@ class TestEndToEndMessageAccumulationFlow:
         payload = call_args.kwargs["payload"]
         assert payload["text"] == "Additional command text"
         assert payload["accumulated_params"] == ["First parameter", "Second parameter", "Third parameter"]
-        assert "message" in payload
+        assert len(payload) == 2  # Only text and accumulated_params
 
         # Verify accumulator was cleared after command execution
         remaining = system["accumulator_manager"]._accumulator.get_messages(chat_id)
@@ -828,18 +828,16 @@ class TestBackwardCompatibility:
         system["mcp_service"].execute_cattackle.assert_called_once()
         payload = system["mcp_service"].execute_cattackle.call_args.kwargs["payload"]
 
-        # Verify backward compatibility fields are present
+        # Verify simplified payload structure
         assert "text" in payload
-        assert "message" in payload
         assert payload["text"] == "Compatibility test command"
 
-        # Verify new accumulated_params field is present
+        # Verify accumulated_params field is present
         assert "accumulated_params" in payload
         assert payload["accumulated_params"] == ["Compatibility test param"]
 
-        # Verify message field contains full Telegram message
-        assert payload["message"]["chat"]["id"] == chat_id
-        assert payload["message"]["text"] == "/echo Compatibility test command"
+        # Verify payload only contains expected fields
+        assert len(payload) == 2
 
     async def test_legacy_command_format_still_works(self, integration_system):
         """Test that commands without accumulated parameters work as before."""
@@ -867,7 +865,7 @@ class TestBackwardCompatibility:
 
         assert payload["text"] == "Legacy command with inline parameters"
         assert payload["accumulated_params"] == []  # Empty but present
-        assert "message" in payload
+        assert len(payload) == 2  # Only text and accumulated_params
 
     async def test_mixed_legacy_and_accumulated_parameter_usage(self, integration_system):
         """Test that both legacy and accumulated parameter styles can be used interchangeably."""
