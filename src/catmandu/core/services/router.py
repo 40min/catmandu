@@ -1,6 +1,7 @@
 import structlog
 
 from catmandu.core.errors import CattackleExecutionError
+from catmandu.core.services.accumulator_manager import AccumulatorManager
 from catmandu.core.services.mcp_service import McpService
 from catmandu.core.services.registry import CattackleRegistry
 
@@ -10,12 +11,22 @@ class MessageRouter:
         self,
         mcp_service: McpService,
         cattackle_registry: CattackleRegistry,
+        accumulator_manager: AccumulatorManager,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
         self._mcp_service = mcp_service
         self._registry = cattackle_registry
+        self._accumulator_manager = accumulator_manager
 
     async def process_update(self, update: dict) -> tuple[int, str] | None:
+        """Process a Telegram update, handling both command and non-command messages.
+
+        Args:
+            update: Telegram update dictionary
+
+        Returns:
+            Tuple of (chat_id, response_text) if a response should be sent, None otherwise
+        """
         if "message" not in update or "text" not in update["message"]:
             self.log.warning("Update does not contain a message or text", update=update)
             return None
@@ -24,12 +35,29 @@ class MessageRouter:
         chat_id = message["chat"]["id"]
         text = message["text"]
 
-        if not text.startswith("/"):
-            return None
+        if text.startswith("/"):
+            return await self._process_command(chat_id, text, message)
+        else:
+            return await self._process_non_command_message(chat_id, text)
 
+    async def _process_command(self, chat_id: int, text: str, message: dict) -> tuple[int, str]:
+        """Process command message with accumulated parameters or handle system commands.
+
+        Args:
+            chat_id: Telegram chat ID
+            text: Command text starting with /
+            message: Full Telegram message object
+
+        Returns:
+            Tuple of (chat_id, response_text)
+        """
         parts = text.split(" ", 1)
         full_command = parts[0][1:]  # Remove the '/' prefix
         payload_str = parts[1] if len(parts) > 1 else ""
+
+        # Handle system commands first
+        if full_command in ["clear_accumulator", "show_accumulator", "accumulator_status"]:
+            return await self._process_system_command(chat_id, full_command)
 
         # Parse cattackle_command format
         if "_" in full_command:
@@ -61,7 +89,16 @@ class MessageRouter:
             return chat_id, f"Command not found: {full_command}"
 
         try:
-            payload = {"text": payload_str, "message": message}
+            # Extract accumulated parameters and clear accumulator
+            accumulated_params = self._accumulator_manager.get_all_parameters_and_clear(chat_id)
+
+            # Create enhanced payload with accumulated parameters
+            payload = {
+                "text": payload_str,
+                "message": message,
+                "accumulated_params": accumulated_params,
+            }
+
             response = await self._mcp_service.execute_cattackle(
                 cattackle_config=cattackle_config, command=command, payload=payload
             )
@@ -70,3 +107,45 @@ class MessageRouter:
         except CattackleExecutionError as e:
             self.log.error("Cattackle execution failed", error=e)
             return chat_id, "An error occurred while executing the command."
+
+    async def _process_non_command_message(self, chat_id: int, text: str) -> tuple[int, str] | None:
+        """Process non-command message for accumulation.
+
+        Args:
+            chat_id: Telegram chat ID
+            text: Message text (not starting with /)
+
+        Returns:
+            Tuple of (chat_id, response_text) if feedback should be sent, None otherwise
+        """
+        self.log.debug("Processing non-command message for accumulation", chat_id=chat_id, text_length=len(text))
+
+        feedback = self._accumulator_manager.process_non_command_message(chat_id, text)
+
+        if feedback:
+            return chat_id, feedback
+
+        return None
+
+    async def _process_system_command(self, chat_id: int, command: str) -> tuple[int, str]:
+        """Process system commands for accumulator management.
+
+        Args:
+            chat_id: Telegram chat ID
+            command: System command name (without /)
+
+        Returns:
+            Tuple of (chat_id, response_text)
+        """
+        self.log.info("Processing system command", command=command, chat_id=chat_id)
+
+        if command == "clear_accumulator":
+            response = self._accumulator_manager.clear_accumulator(chat_id)
+        elif command == "show_accumulator":
+            response = self._accumulator_manager.show_accumulated_messages(chat_id)
+        elif command == "accumulator_status":
+            response = self._accumulator_manager.get_accumulator_status(chat_id)
+        else:
+            response = f"Unknown system command: {command}"
+
+        return chat_id, response

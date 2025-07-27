@@ -13,7 +13,7 @@ class AccumulatorManager:
     managing accumulator state.
     """
 
-    def __init__(self, accumulator: MessageAccumulator, feedback_enabled: bool = True):
+    def __init__(self, accumulator: MessageAccumulator, feedback_enabled: bool = False):
         """Initialize the accumulator manager.
 
         Args:

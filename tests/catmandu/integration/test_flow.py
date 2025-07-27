@@ -1,8 +1,9 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from catmandu.core.models import CattackleResponse
+from catmandu.core.services.accumulator_manager import AccumulatorManager
 
 pytestmark = pytest.mark.asyncio
 
@@ -31,11 +32,21 @@ def mock_mcp_client_manager():
 
 
 @pytest.fixture
+def mock_accumulator_manager():
+    """Create a mock AccumulatorManager for integration testing."""
+
+    manager = MagicMock(spec=AccumulatorManager)
+    manager.get_all_parameters_and_clear.return_value = []  # No accumulated parameters
+    return manager
+
+
+@pytest.fixture
 def app_test_with_mocks(
     app_test,
     test_registry_with_cattackles,
     mock_telegram_service,
     mock_mcp_client_manager,
+    mock_accumulator_manager,
 ):
     """Override services in app state for integration testing."""
     from catmandu.core.config import Settings
@@ -45,7 +56,9 @@ def app_test_with_mocks(
     # Initialize services manually since lifespan doesn't run in tests
     settings = Settings()
     message_router = MessageRouter(
-        mcp_service=mock_mcp_client_manager, cattackle_registry=test_registry_with_cattackles
+        mcp_service=mock_mcp_client_manager,
+        cattackle_registry=test_registry_with_cattackles,
+        accumulator_manager=mock_accumulator_manager,
     )
     poller = TelegramPoller(router=message_router, telegram_client=mock_telegram_service, settings=settings)
 
@@ -75,6 +88,9 @@ async def test_end_to_end_message_flow(app_test_with_mocks):
 
     call_args = mock_mcp_client_manager.execute_cattackle.call_args
     assert call_args.kwargs["command"] == "echo"
-    assert call_args.kwargs["payload"]["text"] == "Hello World"
+    payload = call_args.kwargs["payload"]
+    assert payload["text"] == "Hello World"
+    assert "accumulated_params" in payload
+    assert payload["accumulated_params"] == []
 
     mock_telegram_service.send_message.assert_called_once_with(789, "Echo: Hello World")
