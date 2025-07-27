@@ -35,7 +35,9 @@ async def lifespan(app: FastAPI):
     mcp_service = McpService(mcp_client=mcp_client)
 
     # Initialize accumulator services
-    message_accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
+    message_accumulator = MessageAccumulator(
+        max_messages_per_chat=settings.max_messages_per_chat, max_message_length=settings.max_message_length
+    )
     accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=True)
 
     # Initialize router with accumulator manager dependency
