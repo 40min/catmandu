@@ -54,7 +54,7 @@ class TestDependencyInjection:
             # Test AccumulatorManager has correct accumulator dependency
             manager = app.state.accumulator_manager
             assert manager._accumulator is accumulator
-            assert manager._feedback_enabled is True
+            assert manager._feedback_enabled is False
 
             # Test MessageRouter has correct dependencies
             router = app.state.message_router
@@ -86,12 +86,8 @@ class TestDependencyInjection:
             assert len(messages) == 1
             assert messages[0] == test_message
 
-            # Verify feedback was returned (since feedback_enabled=True)
-            assert result is not None
-            chat_id_result, feedback = result
-            assert chat_id_result == chat_id
-            assert "Message stored" in feedback
-            assert "1 message ready" in feedback
+            # Verify no feedback was returned (since feedback_enabled=False by default)
+            assert result is None
 
     @pytest.mark.asyncio
     async def test_system_commands_integration(self):

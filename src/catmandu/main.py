@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     message_accumulator = MessageAccumulator(
         max_messages_per_chat=settings.max_messages_per_chat, max_message_length=settings.max_message_length
     )
-    accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=True)
+    accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=False)
 
     # Initialize router with accumulator manager dependency
     message_router = MessageRouter(

@@ -31,6 +31,12 @@ class TestAccumulatorManager:
         manager_no_feedback = AccumulatorManager(accumulator, feedback_enabled=False)
         assert manager_no_feedback._feedback_enabled is False
 
+    def test_init_default_feedback_disabled(self, accumulator):
+        """Test AccumulatorManager initialization with default feedback disabled."""
+        manager = AccumulatorManager(accumulator)
+        assert manager._accumulator is accumulator
+        assert manager._feedback_enabled is False
+
     def test_process_non_command_message_with_feedback(self, manager):
         """Test processing non-command messages with feedback enabled."""
         chat_id = 12345
@@ -57,6 +63,23 @@ class TestAccumulatorManager:
         # Verify message was still stored
         messages = manager_no_feedback._accumulator.get_messages(chat_id)
         assert messages == ["Hello world"]
+
+    def test_process_non_command_message_default_no_feedback(self, accumulator):
+        """Test processing non-command messages with default constructor (feedback disabled)."""
+        manager = AccumulatorManager(accumulator)  # Using default feedback_enabled=False
+        chat_id = 12345
+
+        # First message
+        feedback = manager.process_non_command_message(chat_id, "Hello world")
+        assert feedback is None
+
+        # Second message
+        feedback = manager.process_non_command_message(chat_id, "Another message")
+        assert feedback is None
+
+        # Verify messages were still stored
+        messages = manager._accumulator.get_messages(chat_id)
+        assert messages == ["Hello world", "Another message"]
 
     def test_process_non_command_message_empty_text(self, manager):
         """Test processing empty or whitespace-only messages."""
