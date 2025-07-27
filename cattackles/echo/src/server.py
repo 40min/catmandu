@@ -35,24 +35,36 @@ else:
 
 
 @mcp.tool("echo")
-async def echo(text: str, message: Dict[str, Any]) -> str:
+async def echo(text: str, message: Dict[str, Any], accumulated_params: list = None) -> str:
     """
-    Echoes back the text from the payload.
+    Echoes back the text from the payload, with support for accumulated parameters.
 
     Args:
-        text: The text to echo
+        text: The text to echo (immediate parameter)
         message: The Telegram message metadata
+        accumulated_params: List of accumulated messages (optional)
 
     Returns:
         JSON string with data and error fields
     """
-    logger.info(f"Received echo request with text: {text}, message: {message}")
+    logger.info(
+        f"Received echo request with text: '{text}', accumulated_params: {accumulated_params}, message: {message}"
+    )
 
-    # If no text provided, return a helpful message
-    if not text.strip():
-        data = "Please provide some text to echo. Usage: /echo_echo <your text>"
+    # Handle accumulated parameters vs immediate parameters
+    if accumulated_params and len(accumulated_params) > 0:
+        # Use accumulated parameters
+        logger.info(f"Using accumulated parameters: {accumulated_params}")
+        data = f"Echo (from accumulated): {' '.join(accumulated_params)}"
+    elif text.strip():
+        # Use immediate parameter
+        logger.info(f"Using immediate parameter: '{text}'")
+        data = f"Echo (immediate): {text}"
     else:
-        data = text
+        # No parameters provided
+        data = (
+            "Please provide some text to echo. Usage: /echo_echo <your text> or send messages first then use /echo_echo"
+        )
 
     response = json.dumps({"data": data, "error": None})
 
@@ -61,43 +73,113 @@ async def echo(text: str, message: Dict[str, Any]) -> str:
 
 
 @mcp.tool("ping")
-async def ping(text: str, message: Dict[str, Any]) -> str:
+async def ping(text: str, message: Dict[str, Any], accumulated_params: list = None) -> str:
     """
-    Returns a simple pong response.
+    Returns a simple pong response with information about parameters received.
 
     Args:
-        text: Optional text (ignored)
+        text: Optional text (logged but ignored)
         message: The Telegram message metadata (ignored)
+        accumulated_params: List of accumulated messages (logged but ignored)
 
     Returns:
         JSON string with pong response
     """
-    logger.info(f"Received ping request with text: {text}, message: {message}")
+    logger.info(
+        f"Received ping request with text: '{text}', accumulated_params: {accumulated_params}, message: {message}"
+    )
 
-    response = json.dumps({"data": "pong", "error": None})
+    # Show parameter information in response for demonstration
+    param_info = ""
+    if accumulated_params and len(accumulated_params) > 0:
+        param_info = f" (received {len(accumulated_params)} accumulated params)"
+    elif text.strip():
+        param_info = f" (received immediate param: '{text}')"
+
+    response = json.dumps({"data": f"pong{param_info}", "error": None})
 
     logger.info(f"Sending ping response: {response}")
     return response
 
 
-@mcp.tool("joke")
-async def joke(text: str, message: Dict[str, Any]) -> str:
+@mcp.tool("multi_echo")
+async def multi_echo(text: str, message: Dict[str, Any], accumulated_params: list = None) -> str:
     """
-    Generates a funny anekdot (short joke) about the provided text using LLM.
+    Demonstrates using multiple accumulated parameters by echoing them with numbers.
 
     Args:
-        text: The topic or text to create a joke about
+        text: Optional immediate text (ignored if accumulated_params exist)
         message: The Telegram message metadata
+        accumulated_params: List of accumulated messages
+
+    Returns:
+        JSON string with numbered echo response
+    """
+    logger.info(
+        f"Received multi_echo request with text: '{text}', accumulated_params: {accumulated_params}, message: {message}"
+    )
+
+    if accumulated_params and len(accumulated_params) > 0:
+        # Process multiple accumulated parameters
+        logger.info(f"Processing {len(accumulated_params)} accumulated parameters")
+        numbered_messages = []
+        for i, param in enumerate(accumulated_params, 1):
+            numbered_messages.append(f"{i}. {param}")
+
+        data = f"Multi-echo ({len(accumulated_params)} messages):\n" + "\n".join(numbered_messages)
+        logger.info(f"Created numbered response with {len(accumulated_params)} items")
+    elif text.strip():
+        # Fallback to immediate parameter
+        logger.info(f"No accumulated parameters, using immediate text: '{text}'")
+        data = f"Multi-echo (immediate): 1. {text}"
+    else:
+        # No parameters
+        data = "Please send multiple messages first, then use /echo_multi_echo to see them numbered"
+
+    response = json.dumps({"data": data, "error": None})
+    logger.info(f"Sending multi_echo response: {response}")
+    return response
+
+
+@mcp.tool("joke")
+async def joke(text: str, message: Dict[str, Any], accumulated_params: list = None) -> str:
+    """
+    Generates a funny anekdot (short joke) about the provided text using LLM.
+    Supports both immediate parameters and accumulated parameters.
+
+    Args:
+        text: The topic or text to create a joke about (immediate parameter)
+        message: The Telegram message metadata
+        accumulated_params: List of accumulated messages (optional)
 
     Returns:
         JSON string with joke or error
     """
-    logger.info(f"Received joke request with text: {text}, message: {message}")
+    logger.info(
+        f"Received joke request with text: '{text}', accumulated_params: {accumulated_params}, message: {message}"
+    )
+
+    # Determine the topic for the joke
+    topic = None
+    if accumulated_params and len(accumulated_params) > 0:
+        # Use first accumulated parameter as topic
+        topic = accumulated_params[0].strip()
+        logger.info(f"Using accumulated parameter as joke topic: '{topic}'")
+    elif text.strip():
+        # Use immediate parameter as topic
+        topic = text.strip()
+        logger.info(f"Using immediate parameter as joke topic: '{topic}'")
 
     # Check input first
-    if not text.strip():
+    if not topic:
         return json.dumps(
-            {"data": "", "error": "Please provide some text to create a joke about. Usage: /echo_joke <your topic>"}
+            {
+                "data": "",
+                "error": (
+                    "Please provide some text to create a joke about. "
+                    "Usage: /echo_joke <your topic> or send a message first then use /echo_joke"
+                ),
+            }
         )
 
     # Then check if API is available
@@ -108,14 +190,14 @@ async def joke(text: str, message: Dict[str, Any]) -> str:
 
     try:
         # Create a prompt for generating a short, funny anekdot
-        prompt = f"""Create a short, funny anekdot (joke) about: {text.strip()}
+        prompt = f"""Create a short, funny anekdot (joke) about: {topic}
 
 The anekdot should be:
 - Short (1-3 sentences)
 - Funny and witty
 - Family-friendly
 - In the style of a classic anekdot or dad joke
-- Related to the topic: {text.strip()}
+- Related to the topic: {topic}
 
 Just return the joke, no additional text."""
 
@@ -124,7 +206,7 @@ Just return the joke, no additional text."""
         joke_text = response_obj.text.strip()
 
         response = json.dumps({"data": joke_text, "error": None})
-        logger.info(f"Generated joke successfully for topic: {text}")
+        logger.info(f"Generated joke successfully for topic: {topic}")
         return response
 
     except Exception as e:
