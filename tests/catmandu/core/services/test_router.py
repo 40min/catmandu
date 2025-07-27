@@ -439,3 +439,185 @@ async def test_enhanced_routing_logic_both_message_types(router, accumulator_man
     call_args = mock_mcp_service.execute_cattackle.call_args
     payload = call_args[1]["payload"]
     assert payload["accumulated_params"] == ["accumulated message"]
+
+
+@pytest.mark.asyncio
+async def test_system_command_clear_accumulator_empty(router, accumulator_manager):
+    """Test /clear_accumulator system command when accumulator is already empty."""
+    update = {"message": {"chat": {"id": 123}, "text": "/clear_accumulator"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "📭 No messages to clear - your accumulator is already empty."
+
+
+@pytest.mark.asyncio
+async def test_system_command_show_accumulator_empty(router, accumulator_manager):
+    """Test /show_accumulator system command when accumulator is empty."""
+    update = {"message": {"chat": {"id": 123}, "text": "/show_accumulator"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "📭 No messages accumulated."
+
+
+@pytest.mark.asyncio
+async def test_system_command_accumulator_status_empty(router, accumulator_manager):
+    """Test /accumulator_status system command when accumulator is empty."""
+    update = {"message": {"chat": {"id": 123}, "text": "/accumulator_status"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "📭 No messages accumulated. Send some messages and then use a command!"
+
+
+@pytest.mark.asyncio
+async def test_system_command_clear_accumulator_single_message(router, accumulator_manager):
+    """Test /clear_accumulator system command with single message."""
+    # Pre-populate accumulator with single message
+    accumulator_manager.process_non_command_message(123, "single param")
+
+    update = {"message": {"chat": {"id": 123}, "text": "/clear_accumulator"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "🗑️ Cleared 1 accumulated message."
+
+    # Verify accumulator was actually cleared
+    assert (
+        accumulator_manager.get_accumulator_status(123)
+        == "📭 No messages accumulated. Send some messages and then use a command!"
+    )
+
+
+@pytest.mark.asyncio
+async def test_system_command_show_accumulator_single_message(router, accumulator_manager):
+    """Test /show_accumulator system command with single message."""
+    # Pre-populate accumulator with single message
+    accumulator_manager.process_non_command_message(123, "single param")
+
+    update = {"message": {"chat": {"id": 123}, "text": "/show_accumulator"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "📝 Your accumulated messages (1 total):\n1. single param"
+
+    # Verify accumulator still contains the message (show doesn't clear)
+    assert (
+        accumulator_manager.get_accumulator_status(123)
+        == "📝 You have 1 message accumulated and ready for your next command."
+    )
+
+
+@pytest.mark.asyncio
+async def test_system_command_accumulator_status_single_message(router, accumulator_manager):
+    """Test /accumulator_status system command with single message."""
+    # Pre-populate accumulator with single message
+    accumulator_manager.process_non_command_message(123, "single param")
+
+    update = {"message": {"chat": {"id": 123}, "text": "/accumulator_status"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    assert response == "📝 You have 1 message accumulated and ready for your next command."
+
+    # Verify accumulator still contains the message (status doesn't clear)
+    messages = accumulator_manager._accumulator.get_messages(123)
+    assert messages == ["single param"]
+
+
+@pytest.mark.asyncio
+async def test_system_command_show_accumulator_long_messages(router, accumulator_manager):
+    """Test /show_accumulator system command with long messages that get truncated for display."""
+    # Pre-populate accumulator with long message (over 100 characters)
+    long_message = "This is a very long message that should be truncated for display purposes "
+    +"when shown to the user because it exceeds the limit"
+    accumulator_manager.process_non_command_message(123, long_message)
+
+    update = {"message": {"chat": {"id": 123}, "text": "/show_accumulator"}}
+
+    result = await router.process_update(update)
+
+    assert result is not None
+    chat_id, response = result
+    assert chat_id == 123
+    # The message should be truncated to 100 characters for display
+    expected_truncated = long_message[:100] + "..."
+    assert response == f"📝 Your accumulated messages (1 total):\n1. {expected_truncated}"
+
+
+@pytest.mark.asyncio
+async def test_system_commands_chat_isolation(router, accumulator_manager):
+    """Test that system commands work correctly with chat isolation."""
+    # Pre-populate accumulator for two different chats
+    accumulator_manager.process_non_command_message(123, "chat123 message")
+    accumulator_manager.process_non_command_message(456, "chat456 message")
+
+    # Test status for chat 123
+    update_123 = {"message": {"chat": {"id": 123}, "text": "/accumulator_status"}}
+    result_123 = await router.process_update(update_123)
+
+    assert result_123 is not None
+    chat_id_123, response_123 = result_123
+    assert chat_id_123 == 123
+    assert response_123 == "📝 You have 1 message accumulated and ready for your next command."
+
+    # Test status for chat 456
+    update_456 = {"message": {"chat": {"id": 456}, "text": "/accumulator_status"}}
+    result_456 = await router.process_update(update_456)
+
+    assert result_456 is not None
+    chat_id_456, response_456 = result_456
+    assert chat_id_456 == 456
+    assert response_456 == "📝 You have 1 message accumulated and ready for your next command."
+
+    # Clear accumulator for chat 123
+    clear_update = {"message": {"chat": {"id": 123}, "text": "/clear_accumulator"}}
+    await router.process_update(clear_update)
+
+    # Verify chat 123 is cleared but chat 456 still has messages
+    result_123_after = await router.process_update(update_123)
+    assert result_123_after[1] == "📭 No messages accumulated. Send some messages and then use a command!"
+
+    result_456_after = await router.process_update(update_456)
+    assert result_456_after[1] == "📝 You have 1 message accumulated and ready for your next command."
+
+
+@pytest.mark.asyncio
+async def test_system_commands_do_not_route_to_mcp_service(router, mock_mcp_service, accumulator_manager):
+    """Test that system commands are handled directly and not routed to MCP service."""
+    # Pre-populate accumulator
+    accumulator_manager.process_non_command_message(123, "test message")
+
+    # Test all system commands
+    system_commands = ["/clear_accumulator", "/show_accumulator", "/accumulator_status"]
+
+    for command in system_commands:
+        update = {"message": {"chat": {"id": 123}, "text": command}}
+        result = await router.process_update(update)
+
+        assert result is not None
+        chat_id, response = result
+        assert chat_id == 123
+        assert response is not None
+
+    # Verify MCP service was never called for system commands
+    mock_mcp_service.execute_cattackle.assert_not_called()
