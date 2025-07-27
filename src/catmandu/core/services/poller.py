@@ -38,11 +38,28 @@ class TelegramPoller:
         except IOError as e:
             self.log.error("Failed to save offset", offset=offset, error=e)
 
+    def _log_message_details(self, update: dict, update_id: int):
+        """Log detailed information about the message being processed."""
+        if "message" in update and "text" in update["message"]:
+            message_text = update["message"]["text"]
+            chat_id = update["message"]["chat"]["id"]
+            is_command = message_text.startswith("/")
+            self.log.debug(
+                "Processing message",
+                update_id=update_id,
+                chat_id=chat_id,
+                is_command=is_command,
+                message_length=len(message_text),
+            )
+
     async def _run_single_loop(self):
         updates = await self._telegram.get_updates(offset=self._offset)
         for update in updates:
             update_id = update["update_id"]
             self.log.debug("Processing update", update_id=update_id)
+
+            self._log_message_details(update, update_id)
+
             response = await self._router.process_update(update)
             if response:
                 chat_id, text = response
