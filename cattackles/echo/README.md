@@ -7,7 +7,7 @@ A funny cattackle that echoes text and generates AI-powered jokes using Google G
 - **Echo**: Echoes back any text you send (supports both immediate and accumulated parameters)
 - **Ping**: Simple ping/pong functionality for testing with parameter information
 - **Joke**: Generates funny anekdots (short jokes) about any topic using AI
-- **Multi Echo**: Demonstrates multiple accumulated parameters by numbering them
+
 - **Message Accumulation**: Send multiple messages, then execute commands with accumulated parameters
 
 ## Commands
@@ -15,7 +15,6 @@ A funny cattackle that echoes text and generates AI-powered jokes using Google G
 - `/echo_echo [text]` - Echoes back the provided text or accumulated messages
 - `/echo_ping` - Returns "pong" with parameter information
 - `/echo_joke [topic]` - Generates a funny joke about the given topic or first accumulated message
-- `/echo_multi_echo` - Shows all accumulated messages with numbers
 
 ## Message Accumulation Support
 
@@ -51,11 +50,8 @@ Bot: Echo (from accumulated): Hello world from accumulator
 User: First message
 User: Second message
 User: Third message
-User: /echo_multi_echo
-Bot: Multi-echo (3 messages):
-1. First message
-2. Second message
-3. Third message
+User: /echo_echo
+Bot: First message; Second message; Third message
 ```
 
 ## Setup
@@ -117,11 +113,8 @@ Bot: Why did the cat sit on the computer? Because it wanted to keep an eye on th
 User: Task 1: Buy groceries
 User: Task 2: Walk the dog
 User: Task 3: Call mom
-User: /echo_multi_echo
-Bot: Multi-echo (3 messages):
-1. Task 1: Buy groceries
-2. Task 2: Walk the dog
-3. Task 3: Call mom
+User: /echo_echo
+Bot: Task 1: Buy groceries; Task 2: Walk the dog; Task 3: Call mom
 ```
 
 Note: The joke command requires a valid GEMINI_API_KEY to be configured in the .env file.

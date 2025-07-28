@@ -96,42 +96,6 @@ async def ping(text: str, accumulated_params: list = None) -> str:
     return response
 
 
-@mcp.tool("multi_echo")
-async def multi_echo(text: str, accumulated_params: list = None) -> str:
-    """
-    Demonstrates using multiple accumulated parameters by echoing them with numbers.
-
-    Args:
-        text: Optional immediate text (ignored if accumulated_params exist)
-        accumulated_params: List of accumulated messages
-
-    Returns:
-        JSON string with numbered echo response
-    """
-    logger.info(f"Received multi_echo request with text: '{text}', accumulated_params: {accumulated_params}")
-
-    if accumulated_params and len(accumulated_params) > 0:
-        # Process multiple accumulated parameters
-        logger.info(f"Processing {len(accumulated_params)} accumulated parameters")
-        numbered_messages = []
-        for i, param in enumerate(accumulated_params, 1):
-            numbered_messages.append(f"{i}. {param}")
-
-        data = f"Multi-echo ({len(accumulated_params)} messages):\n" + "\n".join(numbered_messages)
-        logger.info(f"Created numbered response with {len(accumulated_params)} items")
-    elif text.strip():
-        # Fallback to immediate parameter
-        logger.info(f"No accumulated parameters, using immediate text: '{text}'")
-        data = f"Multi-echo (immediate): 1. {text}"
-    else:
-        # No parameters
-        data = "Please send multiple messages first, then use /echo_multi_echo to see them numbered"
-
-    response = json.dumps({"data": data, "error": None})
-    logger.info(f"Sending multi_echo response: {response}")
-    return response
-
-
 @mcp.tool("joke")
 async def joke(text: str, accumulated_params: list = None) -> str:
     """

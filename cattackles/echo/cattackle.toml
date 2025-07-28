@@ -8,7 +8,6 @@ tags = ["utility", "fun", "ai"]
 echo = { description = "Echoes back the given text. Supports both immediate parameters and accumulated messages. Usage: /echo_echo <your text> or send messages first then /echo_echo" }
 ping = { description = "Returns a simple pong response with parameter information." }
 joke = { description = "Generates a funny anekdot about the given topic. Supports accumulated parameters. Usage: /echo_joke <your topic> or send a message first then /echo_joke" }
-multi_echo = { description = "Demonstrates multiple accumulated parameters by echoing them with numbers. Send multiple messages first, then use /echo_multi_echo" }
 
 [cattackle.mcp]
 timeout = 30.0
