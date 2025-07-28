@@ -7,7 +7,7 @@ import structlog
 
 
 class ChatLogger:
-    """Service for logging chat interactions to daily files."""
+    """Infrastructure component for logging chat interactions to daily files."""
 
     def __init__(self, logs_dir: str = "logs/chats"):
         self.log = structlog.get_logger(self.__class__.__name__)

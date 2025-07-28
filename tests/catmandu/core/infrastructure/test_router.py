@@ -83,7 +83,7 @@ def accumulator_manager():
 @pytest.fixture
 def mock_chat_logger():
     """Create a mock chat logger."""
-    from catmandu.core.services.chat_logger import ChatLogger
+    from catmandu.core.infrastructure.chat_logger import ChatLogger
 
     return MagicMock(spec=ChatLogger)
 

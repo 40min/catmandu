@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from catmandu.core.services.chat_logger import ChatLogger
+from catmandu.core.infrastructure.chat_logger import ChatLogger
 
 
 class TestChatLogger:
-    """Test cases for ChatLogger service."""
+    """Test cases for ChatLogger infrastructure component."""
 
     @pytest.fixture
     def temp_logs_dir(self):

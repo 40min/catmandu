@@ -1,10 +1,10 @@
 import structlog
 
 from catmandu.core.errors import CattackleExecutionError
+from catmandu.core.infrastructure.chat_logger import ChatLogger
 from catmandu.core.infrastructure.mcp_manager import McpService
 from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.chat_logger import ChatLogger
 
 
 class MessageRouter:

@@ -62,7 +62,7 @@ def integration_system(
     """Create a complete integrated system for testing."""
     from unittest.mock import MagicMock
 
-    from catmandu.core.services.chat_logger import ChatLogger
+    from catmandu.core.infrastructure.chat_logger import ChatLogger
 
     mock_chat_logger = MagicMock(spec=ChatLogger)
     message_router = MessageRouter(

@@ -52,9 +52,9 @@ def app_test_with_mocks(
     from unittest.mock import MagicMock
 
     from catmandu.core.config import Settings
+    from catmandu.core.infrastructure.chat_logger import ChatLogger
     from catmandu.core.infrastructure.poller import TelegramPoller
     from catmandu.core.infrastructure.router import MessageRouter
-    from catmandu.core.services.chat_logger import ChatLogger
 
     # Initialize services manually since lifespan doesn't run in tests
     settings = Settings()
