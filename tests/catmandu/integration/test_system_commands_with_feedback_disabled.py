@@ -29,13 +29,17 @@ class TestSystemCommandsWithFeedbackDisabled:
     @pytest.fixture
     def router_with_feedback_disabled(self, accumulator_manager_feedback_disabled):
         """Create MessageRouter with feedback disabled AccumulatorManager."""
+        from catmandu.core.services.chat_logger import ChatLogger
+
         mock_mcp_service = Mock(spec=McpService)
         mock_registry = Mock(spec=CattackleRegistry)
+        mock_chat_logger = Mock(spec=ChatLogger)
 
         return MessageRouter(
             mcp_service=mock_mcp_service,
             cattackle_registry=mock_registry,
             accumulator_manager=accumulator_manager_feedback_disabled,
+            chat_logger=mock_chat_logger,
         )
 
     @pytest.mark.asyncio

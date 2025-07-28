@@ -49,16 +49,21 @@ def app_test_with_mocks(
     mock_accumulator_manager,
 ):
     """Override services in app state for integration testing."""
+    from unittest.mock import MagicMock
+
     from catmandu.core.config import Settings
     from catmandu.core.infrastructure.poller import TelegramPoller
     from catmandu.core.infrastructure.router import MessageRouter
+    from catmandu.core.services.chat_logger import ChatLogger
 
     # Initialize services manually since lifespan doesn't run in tests
     settings = Settings()
+    mock_chat_logger = MagicMock(spec=ChatLogger)
     message_router = MessageRouter(
         mcp_service=mock_mcp_client_manager,
         cattackle_registry=test_registry_with_cattackles,
         accumulator_manager=mock_accumulator_manager,
+        chat_logger=mock_chat_logger,
     )
     poller = TelegramPoller(router=message_router, telegram_client=mock_telegram_service, settings=settings)
 

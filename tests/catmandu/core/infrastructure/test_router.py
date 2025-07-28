@@ -81,9 +81,17 @@ def accumulator_manager():
 
 
 @pytest.fixture
-def router(mock_mcp_service, mock_registry, accumulator_manager):
+def mock_chat_logger():
+    """Create a mock chat logger."""
+    from catmandu.core.services.chat_logger import ChatLogger
+
+    return MagicMock(spec=ChatLogger)
+
+
+@pytest.fixture
+def router(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger):
     """Create a MessageRouter with mocked dependencies."""
-    return MessageRouter(mock_mcp_service, mock_registry, accumulator_manager)
+    return MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger)
 
 
 @pytest.mark.asyncio
@@ -224,12 +232,12 @@ async def test_process_update_non_command_message(router, accumulator_manager):
 
 
 @pytest.mark.asyncio
-async def test_process_update_non_command_message_no_feedback(mock_mcp_service, mock_registry):
+async def test_process_update_non_command_message_no_feedback(mock_mcp_service, mock_registry, mock_chat_logger):
     """Test processing a non-command message when feedback is disabled."""
     # Create accumulator manager with feedback disabled
     accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
     accumulator_manager = AccumulatorManager(accumulator, feedback_enabled=False)
-    router = MessageRouter(mock_mcp_service, mock_registry, accumulator_manager)
+    router = MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger)
 
     update = {"message": {"chat": {"id": 123}, "text": "regular message"}}
 

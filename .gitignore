@@ -173,3 +173,5 @@ pyrightconfig.json
 
 # Application data directory
 .data/
+
+logs/

@@ -14,6 +14,7 @@ from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+from catmandu.core.services.chat_logger import ChatLogger
 from catmandu.logging import configure_logging
 
 log = structlog.get_logger()
@@ -40,9 +41,15 @@ async def lifespan(app: FastAPI):
     )
     accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=False)
 
-    # Initialize router with accumulator manager dependency
+    # Initialize chat logger
+    chat_logger = ChatLogger(logs_dir=settings.chat_logs_dir)
+
+    # Initialize router with accumulator manager and chat logger dependencies
     message_router = MessageRouter(
-        mcp_service=mcp_service, cattackle_registry=cattackle_registry, accumulator_manager=accumulator_manager
+        mcp_service=mcp_service,
+        cattackle_registry=cattackle_registry,
+        accumulator_manager=accumulator_manager,
+        chat_logger=chat_logger,
     )
     poller = TelegramPoller(router=message_router, telegram_client=telegram_client, settings=settings)
 
@@ -51,6 +58,7 @@ async def lifespan(app: FastAPI):
     app.state.mcp_service = mcp_service
     app.state.message_accumulator = message_accumulator
     app.state.accumulator_manager = accumulator_manager
+    app.state.chat_logger = chat_logger
     app.state.message_router = message_router
     app.state.telegram_client = telegram_client
     app.state.poller = poller

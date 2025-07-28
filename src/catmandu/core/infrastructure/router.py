@@ -4,6 +4,7 @@ from catmandu.core.errors import CattackleExecutionError
 from catmandu.core.infrastructure.mcp_manager import McpService
 from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+from catmandu.core.services.chat_logger import ChatLogger
 
 
 class MessageRouter:
@@ -12,11 +13,13 @@ class MessageRouter:
         mcp_service: McpService,
         cattackle_registry: CattackleRegistry,
         accumulator_manager: AccumulatorManager,
+        chat_logger: ChatLogger,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
         self._mcp_service = mcp_service
         self._registry = cattackle_registry
         self._accumulator_manager = accumulator_manager
+        self._chat_logger = chat_logger
 
     async def process_update(self, update: dict) -> tuple[int, str] | None:
         """Process a Telegram update, handling both command and non-command messages.
@@ -34,11 +37,12 @@ class MessageRouter:
         message = update["message"]
         chat_id = message["chat"]["id"]
         text = message["text"]
+        user_info = message.get("from", {})
 
         if text.startswith("/"):
             return await self._process_command(chat_id, text, message)
         else:
-            return await self._process_non_command_message(chat_id, text)
+            return await self._process_non_command_message(chat_id, text, user_info)
 
     async def _process_command(self, chat_id: int, text: str, message: dict) -> tuple[int, str]:
         """Process command message with accumulated parameters or handle system commands.
@@ -54,10 +58,23 @@ class MessageRouter:
         parts = text.split(" ", 1)
         full_command = parts[0][1:]  # Remove the '/' prefix
         payload_str = parts[1] if len(parts) > 1 else ""
+        user_info = message.get("from", {})
 
         # Handle system commands first
         if full_command in ["clear_accumulator", "show_accumulator", "accumulator_status"]:
-            return await self._process_system_command(chat_id, full_command)
+            response_text = await self._process_system_command(chat_id, full_command)
+
+            # Log system command
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="command",
+                text=text,
+                user_info=user_info,
+                command=full_command,
+                response_length=len(response_text[1]),
+            )
+
+            return response_text
 
         # Parse cattackle_command format
         if "_" in full_command:
@@ -86,7 +103,20 @@ class MessageRouter:
             self.log.warning(
                 "Command not found", full_command=full_command, cattackle_name=cattackle_name, command=command
             )
-            return chat_id, f"Command not found: {full_command}"
+            response_text = f"Command not found: {full_command}"
+
+            # Log failed command
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="command",
+                text=text,
+                user_info=user_info,
+                command=full_command,
+                cattackle_name=cattackle_name,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text
 
         try:
             # Extract accumulated parameters and clear accumulator
@@ -102,22 +132,52 @@ class MessageRouter:
                 cattackle_config=cattackle_config, command=command, payload=payload
             )
 
-            return chat_id, str(response.data)
+            response_text = str(response.data)
+
+            # Log successful command
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="command",
+                text=text,
+                user_info=user_info,
+                command=command,
+                cattackle_name=cattackle_name,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text
         except CattackleExecutionError as e:
             self.log.error("Cattackle execution failed", error=e)
-            return chat_id, "An error occurred while executing the command."
+            response_text = "An error occurred while executing the command."
 
-    async def _process_non_command_message(self, chat_id: int, text: str) -> tuple[int, str] | None:
+            # Log failed command execution
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="command",
+                text=text,
+                user_info=user_info,
+                command=command,
+                cattackle_name=cattackle_name,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text
+
+    async def _process_non_command_message(self, chat_id: int, text: str, user_info: dict) -> tuple[int, str] | None:
         """Process non-command message for accumulation.
 
         Args:
             chat_id: Telegram chat ID
             text: Message text (not starting with /)
+            user_info: User information from Telegram message
 
         Returns:
             Tuple of (chat_id, response_text) if feedback should be sent, None otherwise
         """
         self.log.debug("Processing non-command message for accumulation", chat_id=chat_id, text_length=len(text))
+
+        # Log the non-command message
+        self._chat_logger.log_message(chat_id=chat_id, message_type="message", text=text, user_info=user_info)
 
         feedback = self._accumulator_manager.process_non_command_message(chat_id, text)
 

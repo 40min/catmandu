@@ -60,10 +60,16 @@ def integration_system(
     temp_settings,
 ):
     """Create a complete integrated system for testing."""
+    from unittest.mock import MagicMock
+
+    from catmandu.core.services.chat_logger import ChatLogger
+
+    mock_chat_logger = MagicMock(spec=ChatLogger)
     message_router = MessageRouter(
         mcp_service=mock_mcp_service,
         cattackle_registry=test_registry_with_cattackles,
         accumulator_manager=real_accumulator_manager,
+        chat_logger=mock_chat_logger,
     )
 
     poller = TelegramPoller(
