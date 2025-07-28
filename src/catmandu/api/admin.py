@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from catmandu.api.dependencies import get_cattackle_registry
-from catmandu.core.services.registry import CattackleRegistry
+from catmandu.core.infrastructure.registry import CattackleRegistry
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

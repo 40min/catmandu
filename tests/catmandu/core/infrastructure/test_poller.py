@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from catmandu.core.config import Settings
-from catmandu.core.services.poller import TelegramPoller
+from catmandu.core.infrastructure.poller import TelegramPoller
 
 pytestmark = pytest.mark.asyncio
 

@@ -50,8 +50,8 @@ def app_test_with_mocks(
 ):
     """Override services in app state for integration testing."""
     from catmandu.core.config import Settings
-    from catmandu.core.services.poller import TelegramPoller
-    from catmandu.core.services.router import MessageRouter
+    from catmandu.core.infrastructure.poller import TelegramPoller
+    from catmandu.core.infrastructure.router import MessageRouter
 
     # Initialize services manually since lifespan doesn't run in tests
     settings = Settings()

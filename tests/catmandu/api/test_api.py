@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 from catmandu.api.dependencies import get_cattackle_registry
 from catmandu.core.config import Settings
-from catmandu.core.services.registry import CattackleRegistry
+from catmandu.core.infrastructure.registry import CattackleRegistry
 
 pytestmark = pytest.mark.asyncio
 
@@ -50,27 +50,21 @@ def test_registry_with_cattackles(valid_cattackle_toml_file, app_test):
         del app_test.dependency_overrides[get_cattackle_registry]
 
 
-async def test_list_cattackles_no_cattackles(
-    async_client: AsyncClient, test_registry_empty
-):
+async def test_list_cattackles_no_cattackles(async_client: AsyncClient, test_registry_empty):
     """Tests the /nonexistent endpoint when no cattackles are present."""
     response = await async_client.get("/cattackles")
     assert response.status_code == 200
     assert response.json() == []
 
 
-async def test_admin_reload_cattackles(
-    async_client: AsyncClient, test_registry_with_cattackles
-):
+async def test_admin_reload_cattackles(async_client: AsyncClient, test_registry_with_cattackles):
     """Tests the POST /admin/reload endpoint."""
     response = await async_client.post("/admin/reload")
     assert response.status_code == 200
     assert response.json() == {"status": "reloaded", "found": 1}
 
 
-async def test_list_cattackles_with_cattackles(
-    async_client: AsyncClient, test_registry_with_cattackles
-):
+async def test_list_cattackles_with_cattackles(async_client: AsyncClient, test_registry_with_cattackles):
     """Tests the /cattackles endpoint when cattackles are present."""
     response = await async_client.get("/cattackles")
     assert response.status_code == 200

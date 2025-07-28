@@ -8,12 +8,12 @@ from catmandu.api import admin, cattackles, health
 from catmandu.core.clients.mcp import McpClient
 from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
+from catmandu.core.infrastructure.mcp_manager import McpService
+from catmandu.core.infrastructure.poller import TelegramPoller
+from catmandu.core.infrastructure.registry import CattackleRegistry
+from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.mcp_service import McpService
-from catmandu.core.services.poller import TelegramPoller
-from catmandu.core.services.registry import CattackleRegistry
-from catmandu.core.services.router import MessageRouter
 from catmandu.logging import configure_logging
 
 log = structlog.get_logger()

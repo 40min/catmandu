@@ -2,10 +2,10 @@
 
 import pytest
 
+from catmandu.core.infrastructure.registry import CattackleRegistry
+from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.registry import CattackleRegistry
-from catmandu.core.services.router import MessageRouter
 from catmandu.main import create_app
 
 

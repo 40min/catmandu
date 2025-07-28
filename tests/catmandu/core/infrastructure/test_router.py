@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from catmandu.core.infrastructure.mcp_manager import McpService
+from catmandu.core.infrastructure.registry import CattackleRegistry
+from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.models import CattackleConfig, CommandsConfig, McpConfig, StdioTransportConfig
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.mcp_service import McpService
-from catmandu.core.services.registry import CattackleRegistry
-from catmandu.core.services.router import MessageRouter
 
 
 @pytest.fixture

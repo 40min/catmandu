@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from catmandu.core.config import Settings
+from catmandu.core.infrastructure.poller import TelegramPoller
+from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.models import CattackleResponse
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.poller import TelegramPoller
-from catmandu.core.services.router import MessageRouter
 
 pytestmark = pytest.mark.asyncio
 

@@ -5,7 +5,7 @@ import structlog
 
 from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
-from catmandu.core.services.router import MessageRouter
+from catmandu.core.infrastructure.router import MessageRouter
 
 
 class TelegramPoller:

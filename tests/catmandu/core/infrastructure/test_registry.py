@@ -3,7 +3,7 @@ import pathlib
 import pytest
 
 from catmandu.core.config import Settings
-from catmandu.core.services.registry import CattackleRegistry
+from catmandu.core.infrastructure.registry import CattackleRegistry
 
 
 @pytest.fixture

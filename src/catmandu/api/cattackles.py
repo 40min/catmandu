@@ -3,8 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from catmandu.api.dependencies import get_cattackle_registry
+from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.models import CattackleConfig
-from catmandu.core.services.registry import CattackleRegistry
 
 router = APIRouter()
 

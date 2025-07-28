@@ -9,13 +9,13 @@ from mcp import ClientSession
 
 from catmandu.core.clients.mcp import McpClient
 from catmandu.core.errors import CattackleExecutionError
+from catmandu.core.infrastructure.mcp_manager import McpService
 from catmandu.core.models import (
     CattackleConfig,
     CommandsConfig,
     McpConfig,
     StdioTransportConfig,
 )
-from catmandu.core.services.mcp_service import McpService
 
 
 @pytest.fixture

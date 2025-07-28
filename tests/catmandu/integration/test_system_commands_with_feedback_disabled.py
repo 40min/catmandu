@@ -10,11 +10,11 @@ from unittest.mock import Mock
 
 import pytest
 
+from catmandu.core.infrastructure.mcp_manager import McpService
+from catmandu.core.infrastructure.registry import CattackleRegistry
+from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
-from catmandu.core.services.mcp_service import McpService
-from catmandu.core.services.registry import CattackleRegistry
-from catmandu.core.services.router import MessageRouter
 
 
 class TestSystemCommandsWithFeedbackDisabled:

@@ -107,7 +107,7 @@ async def async_client(app_test):
 def test_registry_with_cattackles(valid_cattackle_toml_file):
     """Create a registry with cattackles for testing."""
     from catmandu.core.config import Settings
-    from catmandu.core.services.registry import CattackleRegistry
+    from catmandu.core.infrastructure.registry import CattackleRegistry
 
     settings = Settings()
     registry = CattackleRegistry(config=settings)
