@@ -37,6 +37,7 @@ else:
 async def echo(text: str, accumulated_params: list = None) -> str:
     """
     Echoes back the text from the payload, with support for accumulated parameters.
+    Returns exactly the same text as entered, joining accumulated messages with semicolon.
 
     Args:
         text: The text to echo (immediate parameter)
@@ -49,13 +50,13 @@ async def echo(text: str, accumulated_params: list = None) -> str:
 
     # Handle accumulated parameters vs immediate parameters
     if accumulated_params and len(accumulated_params) > 0:
-        # Use accumulated parameters
+        # Use accumulated parameters joined with semicolon
         logger.info(f"Using accumulated parameters: {accumulated_params}")
-        data = f"Echo (from accumulated): {' '.join(accumulated_params)}"
+        data = "; ".join(accumulated_params)
     elif text.strip():
         # Use immediate parameter
         logger.info(f"Using immediate parameter: '{text}'")
-        data = f"Echo (immediate): {text}"
+        data = text
     else:
         # No parameters provided
         data = (

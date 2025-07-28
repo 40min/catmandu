@@ -12,13 +12,13 @@ from server import echo, joke, multi_echo, ping  # noqa
 
 @pytest.mark.asyncio
 async def test_echo_command_with_text():
-    """Tests that the echo command returns the text in JSON format with immediate parameter prefix."""
+    """Tests that the echo command returns the exact text without any prefix."""
     text = "hello world"
     result = await echo(text)
 
     # Parse the JSON response
     parsed = json.loads(result)
-    assert parsed["data"] == "Echo (immediate): hello world"
+    assert parsed["data"] == "hello world"
     assert parsed["error"] is None
 
 
@@ -103,15 +103,16 @@ async def test_joke_command_no_api_key():
 
 
 @pytest.mark.asyncio
-async def test_echo_with_accumulated_params():
-    """Tests that echo command works with accumulated parameters."""
+async def test_echo_with_multiple_accumulated_params():
+    """Tests that echo command handles multiple accumulated parameters joined with semicolon."""
     text = ""  # No immediate text
     accumulated_params = ["hello", "world", "from", "accumulator"]
 
     result = await echo(text, accumulated_params=accumulated_params)
 
     parsed = json.loads(result)
-    assert "Echo (from accumulated): hello world from accumulator" == parsed["data"]
+    expected = "hello; world; from; accumulator"
+    assert expected == parsed["data"]
     assert parsed["error"] is None
 
 
@@ -124,7 +125,8 @@ async def test_echo_immediate_vs_accumulated():
     result = await echo(text, accumulated_params=accumulated_params)
 
     parsed = json.loads(result)
-    assert "Echo (from accumulated): accumulated text" == parsed["data"]
+    expected = "accumulated; text"
+    assert expected == parsed["data"]
     assert parsed["error"] is None
 
 
@@ -136,7 +138,20 @@ async def test_echo_backward_compatibility():
     result = await echo(text)
 
     parsed = json.loads(result)
-    assert "Echo (immediate): backward compatible" == parsed["data"]
+    assert "backward compatible" == parsed["data"]
+    assert parsed["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_echo_with_single_accumulated_param():
+    """Tests that echo command handles single accumulated parameter without any prefix."""
+    text = ""  # No immediate text
+    accumulated_params = ["single message"]
+
+    result = await echo(text, accumulated_params=accumulated_params)
+
+    parsed = json.loads(result)
+    assert "single message" == parsed["data"]
     assert parsed["error"] is None
 
 
@@ -288,7 +303,7 @@ async def test_all_commands_handle_empty_accumulated_params():
     # Test echo
     result = await echo(text, accumulated_params=accumulated_params)
     parsed = json.loads(result)
-    assert "Echo (immediate): test" == parsed["data"]
+    assert "test" == parsed["data"]
 
     # Test ping
     result = await ping(text, accumulated_params=accumulated_params)

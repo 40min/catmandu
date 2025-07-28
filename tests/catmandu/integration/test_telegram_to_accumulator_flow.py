@@ -25,7 +25,7 @@ def mock_telegram_client():
 def mock_mcp_service():
     """Create a mock McpService for integration testing."""
     service = AsyncMock()
-    service.execute_cattackle.return_value = CattackleResponse(data="Echo: test response")
+    service.execute_cattackle.return_value = CattackleResponse(data="test response")
     return service
 
 
@@ -205,7 +205,7 @@ class TestTelegramToAccumulatorFlow:
         assert len(remaining_messages) == 0
 
         # Verify: Command response was sent
-        mock_telegram_client.send_message.assert_called_with(12345, "Echo: test response")
+        mock_telegram_client.send_message.assert_called_with(12345, "test response")
 
     async def test_chat_isolation_in_message_flow(
         self, integration_poller, mock_telegram_client, real_accumulator_manager

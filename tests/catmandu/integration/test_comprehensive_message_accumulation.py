@@ -31,7 +31,7 @@ def mock_telegram_client():
 def mock_mcp_service():
     """Create a mock McpService for integration testing."""
     service = AsyncMock()
-    service.execute_cattackle.return_value = CattackleResponse(data="Echo: test response")
+    service.execute_cattackle.return_value = CattackleResponse(data="test response")
     return service
 
 
@@ -159,7 +159,7 @@ class TestEndToEndMessageAccumulationFlow:
         assert len(remaining) == 0
 
         # Verify command response was sent
-        system["telegram_client"].send_message.assert_called_with(chat_id, "Echo: test response")
+        system["telegram_client"].send_message.assert_called_with(chat_id, "test response")
 
     async def test_command_execution_without_accumulated_parameters(self, integration_system):
         """Test that commands work normally when no parameters are accumulated."""
