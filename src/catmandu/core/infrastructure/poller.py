@@ -1,5 +1,6 @@
 import asyncio
 import pathlib
+import random
 
 import structlog
 
@@ -52,6 +53,42 @@ class TelegramPoller:
                 message_length=len(message_text),
             )
 
+    async def _send_message_with_backoff(
+        self, chat_id: int, text: str, max_retries: int = 3, base_delay: float = 1.0
+    ) -> bool:
+        """
+        Send message with exponential backoff retry logic.
+
+        Args:
+            chat_id: Target chat ID
+            text: Message text to send
+            max_retries: Maximum number of retry attempts
+            base_delay: Base delay in seconds for exponential backoff
+
+        Returns:
+            True if message was sent successfully, False otherwise
+        """
+        for attempt in range(max_retries + 1):
+            result = await self._telegram.send_message(chat_id, text)
+            if result is not None:
+                return True
+
+            if attempt < max_retries:
+                # Exponential backoff with jitter
+                delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                self.log.warning(
+                    "Message send failed, retrying",
+                    chat_id=chat_id,
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    delay=delay,
+                )
+                await asyncio.sleep(delay)
+            else:
+                self.log.error("Failed to send message after all retries", chat_id=chat_id, max_retries=max_retries)
+
+        return False
+
     async def _run_single_loop(self):
         updates = await self._telegram.get_updates(offset=self._offset)
         for update in updates:
@@ -63,7 +100,7 @@ class TelegramPoller:
             response = await self._router.process_update(update)
             if response:
                 chat_id, text = response
-                await self._telegram.send_message(chat_id, text)
+                await self._send_message_with_backoff(chat_id, text)
 
             self._offset = update_id + 1
 

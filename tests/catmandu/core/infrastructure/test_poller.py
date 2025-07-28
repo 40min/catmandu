@@ -1,7 +1,7 @@
 import asyncio
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import pytest
 
@@ -250,3 +250,154 @@ class TestTelegramPoller:
 
         # Verify it stopped
         assert telegram_poller._should_stop.is_set()
+
+
+class TestTelegramPollerBackoff:
+    """Test cases for exponential backoff functionality in TelegramPoller."""
+
+    async def test_send_message_with_backoff_success_first_try(self, telegram_poller, mock_telegram_client):
+        """Test that successful message sending on first try works correctly."""
+        # Setup
+        mock_telegram_client.send_message.return_value = {"message_id": 123}
+
+        # Execute
+        result = await telegram_poller._send_message_with_backoff(789, "Test message")
+
+        # Verify
+        assert result is True
+        mock_telegram_client.send_message.assert_called_once_with(789, "Test message")
+
+    async def test_send_message_with_backoff_success_after_retries(self, telegram_poller, mock_telegram_client):
+        """Test that message sending succeeds after initial failures."""
+        # Setup - fail twice, then succeed
+        mock_telegram_client.send_message.side_effect = [
+            None,  # First attempt fails
+            None,  # Second attempt fails
+            {"message_id": 123},  # Third attempt succeeds
+        ]
+
+        # Execute
+        result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=3)
+
+        # Verify
+        assert result is True
+        assert mock_telegram_client.send_message.call_count == 3
+        expected_calls = [call(789, "Test message")] * 3
+        mock_telegram_client.send_message.assert_has_calls(expected_calls)
+
+    async def test_send_message_with_backoff_all_retries_fail(self, telegram_poller, mock_telegram_client):
+        """Test that message sending fails after all retries are exhausted."""
+        # Setup - all attempts fail
+        mock_telegram_client.send_message.return_value = None
+
+        # Execute
+        result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=2)
+
+        # Verify
+        assert result is False
+        assert mock_telegram_client.send_message.call_count == 3  # Initial + 2 retries
+
+    async def test_send_message_with_backoff_timing(self, telegram_poller, mock_telegram_client):
+        """Test that exponential backoff timing works correctly."""
+        # Setup - all attempts fail to test timing
+        mock_telegram_client.send_message.return_value = None
+
+        # Execute with timing measurement
+        start_time = asyncio.get_event_loop().time()
+        result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=2, base_delay=0.1)
+        end_time = asyncio.get_event_loop().time()
+
+        # Verify
+        assert result is False
+        # Should have delays of ~0.1s and ~0.2s (plus jitter), so total > 0.3s
+        assert end_time - start_time >= 0.25  # Account for jitter and timing variance
+
+    async def test_send_message_with_backoff_zero_retries(self, telegram_poller, mock_telegram_client):
+        """Test that zero retries configuration works correctly."""
+        # Setup
+        mock_telegram_client.send_message.return_value = None
+
+        # Execute
+        result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=0)
+
+        # Verify
+        assert result is False
+        mock_telegram_client.send_message.assert_called_once_with(789, "Test message")
+
+    async def test_run_single_loop_uses_backoff(self, telegram_poller, mock_telegram_client, mock_message_router):
+        """Test that _run_single_loop uses the backoff mechanism for sending messages."""
+        # Setup
+        update = {
+            "update_id": 123,
+            "message": {
+                "chat": {"id": 789},
+                "text": "/test",
+            },
+        }
+        mock_telegram_client.get_updates.return_value = [update]
+        mock_message_router.process_update.return_value = (789, "Response message")
+
+        # First attempt fails, second succeeds
+        mock_telegram_client.send_message.side_effect = [None, {"message_id": 456}]
+
+        # Execute
+        await telegram_poller._run_single_loop()
+
+        # Verify that backoff was used (multiple send attempts)
+        assert mock_telegram_client.send_message.call_count == 2
+        expected_calls = [call(789, "Response message")] * 2
+        mock_telegram_client.send_message.assert_has_calls(expected_calls)
+
+    async def test_run_single_loop_continues_after_send_failure(
+        self, telegram_poller, mock_telegram_client, mock_message_router
+    ):
+        """Test that processing continues even if message sending ultimately fails."""
+        # Setup - multiple updates, one with failed sending
+        updates = [
+            {
+                "update_id": 123,
+                "message": {"chat": {"id": 789}, "text": "/test1"},
+            },
+            {
+                "update_id": 124,
+                "message": {"chat": {"id": 789}, "text": "/test2"},
+            },
+        ]
+        mock_telegram_client.get_updates.return_value = updates
+        mock_message_router.process_update.side_effect = [
+            (789, "Response 1"),
+            (789, "Response 2"),
+        ]
+
+        # Track call count to handle the backoff retries properly
+        call_count = 0
+
+        def mock_send_message(chat_id, text):
+            nonlocal call_count
+            call_count += 1
+            # First message fails all retries (default 3 + initial = 4 attempts)
+            if call_count <= 4:
+                return None
+            # Second message succeeds on first try
+            return {"message_id": 456}
+
+        mock_telegram_client.send_message.side_effect = mock_send_message
+
+        # Execute
+        await telegram_poller._run_single_loop()
+
+        # Verify both updates were processed despite first send failure
+        assert mock_message_router.process_update.call_count == 2
+        assert call_count == 5  # 4 failed attempts for first message + 1 success for second
+
+    async def test_send_message_with_backoff_custom_parameters(self, telegram_poller, mock_telegram_client):
+        """Test that custom backoff parameters work correctly."""
+        # Setup - fail first attempt, succeed second
+        mock_telegram_client.send_message.side_effect = [None, {"message_id": 123}]
+
+        # Execute with custom parameters
+        result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=1, base_delay=0.05)
+
+        # Verify
+        assert result is True
+        assert mock_telegram_client.send_message.call_count == 2
