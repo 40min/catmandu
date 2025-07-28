@@ -92,5 +92,7 @@ async def test_end_to_end_message_flow(app_test_with_mocks):
     assert payload["text"] == "Hello World"
     assert "accumulated_params" in payload
     assert payload["accumulated_params"] == []
+    assert len(payload) == 2  # Only text and accumulated_params
+    assert "message" not in payload  # Verify simplified payload structure
 
     mock_telegram_service.send_message.assert_called_once_with(789, "Echo: Hello World")

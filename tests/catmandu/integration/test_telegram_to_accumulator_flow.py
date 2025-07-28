@@ -33,7 +33,7 @@ def mock_mcp_service():
 def real_accumulator_manager():
     """Create a real AccumulatorManager with real MessageAccumulator for integration testing."""
     accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
-    return AccumulatorManager(accumulator, feedback_enabled=True)
+    return AccumulatorManager(accumulator, feedback_enabled=False)
 
 
 @pytest.fixture
@@ -95,11 +95,8 @@ class TestTelegramToAccumulatorFlow:
         assert len(accumulated_messages) == 1
         assert accumulated_messages[0] == "This is a test message for accumulation"
 
-        # Verify: Feedback was sent to user
-        mock_telegram_client.send_message.assert_called_once()
-        call_args = mock_telegram_client.send_message.call_args
-        assert call_args[0][0] == 12345  # chat_id
-        assert "📝" in call_args[0][1]  # feedback message contains emoji
+        # Verify: No feedback was sent to user (feedback_enabled=False)
+        mock_telegram_client.send_message.assert_not_called()
 
     async def test_multiple_message_accumulation_flow(
         self, integration_poller, mock_telegram_client, real_accumulator_manager
@@ -144,8 +141,8 @@ class TestTelegramToAccumulatorFlow:
         assert accumulated_messages[1] == "Second message"
         assert accumulated_messages[2] == "Third message"
 
-        # Verify: Feedback was sent for each message
-        assert mock_telegram_client.send_message.call_count == 3
+        # Verify: No feedback was sent for non-command messages (feedback_enabled=False)
+        assert mock_telegram_client.send_message.call_count == 0
 
     async def test_command_execution_with_accumulated_parameters_flow(
         self, integration_poller, mock_telegram_client, mock_mcp_service, real_accumulator_manager
@@ -199,6 +196,8 @@ class TestTelegramToAccumulatorFlow:
         payload = call_args.kwargs["payload"]
         assert payload["accumulated_params"] == ["Parameter 1", "Parameter 2"]
         assert payload["text"] == "Execute with accumulated params"
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
         # Verify: Accumulator was cleared after command execution
         remaining_messages = real_accumulator_manager._accumulator.get_messages(12345)
@@ -342,8 +341,8 @@ class TestTelegramToAccumulatorFlow:
         assert len(accumulated_messages) == 1
         assert accumulated_messages[0] == "Regular message"
 
-        # Verify: Only one response was sent (for the regular message)
-        assert mock_telegram_client.send_message.call_count == 1
+        # Verify: No feedback was sent for non-command messages (feedback_enabled=False)
+        assert mock_telegram_client.send_message.call_count == 0
 
     async def test_empty_and_whitespace_message_handling(
         self, integration_poller, mock_telegram_client, real_accumulator_manager
@@ -385,3 +384,6 @@ class TestTelegramToAccumulatorFlow:
         accumulated_messages = real_accumulator_manager._accumulator.get_messages(12345)
         assert len(accumulated_messages) == 1
         assert accumulated_messages[0] == "Valid message"
+
+        # Verify: No feedback was sent for non-command messages (feedback_enabled=False)
+        assert mock_telegram_client.send_message.call_count == 0

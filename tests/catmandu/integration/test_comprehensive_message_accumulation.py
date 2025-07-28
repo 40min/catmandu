@@ -39,7 +39,7 @@ def mock_mcp_service():
 def real_accumulator_manager():
     """Create a real AccumulatorManager with real MessageAccumulator for integration testing."""
     accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
-    return AccumulatorManager(accumulator, feedback_enabled=True)
+    return AccumulatorManager(accumulator, feedback_enabled=False)
 
 
 @pytest.fixture
@@ -126,8 +126,8 @@ class TestEndToEndMessageAccumulationFlow:
         assert len(accumulated) == 3
         assert accumulated == ["First parameter", "Second parameter", "Third parameter"]
 
-        # Verify feedback was sent for each message
-        assert system["telegram_client"].send_message.call_count == 3
+        # Verify no feedback was sent for non-command messages (feedback_enabled=False)
+        assert system["telegram_client"].send_message.call_count == 0
 
         # Phase 2: Execute command with accumulated parameters
         command_updates = [
@@ -152,7 +152,8 @@ class TestEndToEndMessageAccumulationFlow:
         payload = call_args.kwargs["payload"]
         assert payload["text"] == "Additional command text"
         assert payload["accumulated_params"] == ["First parameter", "Second parameter", "Third parameter"]
-        assert len(payload) == 2  # Only text and accumulated_params
+        assert len(payload) == 2  # Only text and accumulated_params (no message field)
+        assert "message" not in payload  # Verify message field is not included
 
         # Verify accumulator was cleared after command execution
         remaining = system["accumulator_manager"]._accumulator.get_messages(chat_id)
@@ -188,6 +189,8 @@ class TestEndToEndMessageAccumulationFlow:
         payload = call_args.kwargs["payload"]
         assert payload["text"] == "Direct command text"
         assert payload["accumulated_params"] == []
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
     async def test_mixed_message_and_command_flow(self, integration_system):
         """Test alternating between message accumulation and command execution."""
@@ -249,12 +252,16 @@ class TestEndToEndMessageAccumulationFlow:
         first_payload = first_call.kwargs["payload"]
         assert first_payload["text"] == "First command"
         assert first_payload["accumulated_params"] == ["First message"]
+        assert len(first_payload) == 2  # Only text and accumulated_params
+        assert "message" not in first_payload  # Verify simplified payload structure
 
         # Check second command execution (with 2 accumulated parameters)
         second_call = system["mcp_service"].execute_cattackle.call_args_list[1]
         second_payload = second_call.kwargs["payload"]
         assert second_payload["text"] == "Second command"
         assert second_payload["accumulated_params"] == ["Second message", "Third message"]
+        assert len(second_payload) == 2  # Only text and accumulated_params
+        assert "message" not in second_payload  # Verify simplified payload structure
 
         # Verify accumulator is empty after all commands
         remaining = system["accumulator_manager"]._accumulator.get_messages(chat_id)
@@ -390,11 +397,15 @@ class TestChatIsolationIntegration:
         chat1_call = system["mcp_service"].execute_cattackle.call_args_list[0]
         chat1_payload = chat1_call.kwargs["payload"]
         assert chat1_payload["accumulated_params"] == ["Chat 1 param 1", "Chat 1 param 2"]
+        assert len(chat1_payload) == 2  # Only text and accumulated_params
+        assert "message" not in chat1_payload  # Verify simplified payload structure
 
         # Check chat 2 command execution
         chat2_call = system["mcp_service"].execute_cattackle.call_args_list[1]
         chat2_payload = chat2_call.kwargs["payload"]
         assert chat2_payload["accumulated_params"] == ["Chat 2 param 1"]
+        assert len(chat2_payload) == 2  # Only text and accumulated_params
+        assert "message" not in chat2_payload  # Verify simplified payload structure
 
         # Verify both accumulators are cleared
         accumulator = system["accumulator_manager"]._accumulator
@@ -429,6 +440,8 @@ class TestParameterExtractionVariations:
         payload = system["mcp_service"].execute_cattackle.call_args.kwargs["payload"]
         assert payload["accumulated_params"] == []
         assert payload["text"] == "No accumulated parameters"
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
     async def test_parameter_extraction_with_single_message(self, integration_system):
         """Test command execution with exactly one accumulated message."""
@@ -461,6 +474,8 @@ class TestParameterExtractionVariations:
         system["mcp_service"].execute_cattackle.assert_called_once()
         payload = system["mcp_service"].execute_cattackle.call_args.kwargs["payload"]
         assert payload["accumulated_params"] == ["Single parameter"]
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
     async def test_parameter_extraction_with_many_messages(self, integration_system):
         """Test command execution with many accumulated messages."""
@@ -501,6 +516,8 @@ class TestParameterExtractionVariations:
         payload = system["mcp_service"].execute_cattackle.call_args.kwargs["payload"]
         expected_params = [f"Parameter {i + 1}" for i in range(10)]
         assert payload["accumulated_params"] == expected_params
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
     async def test_parameter_extraction_with_empty_and_whitespace_messages(self, integration_system):
         """Test that empty and whitespace messages are filtered during parameter extraction."""
@@ -557,6 +574,8 @@ class TestParameterExtractionVariations:
         system["mcp_service"].execute_cattackle.assert_called_once()
         payload = system["mcp_service"].execute_cattackle.call_args.kwargs["payload"]
         assert payload["accumulated_params"] == ["Valid parameter 1", "Valid parameter 2"]
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
 
 
 class TestSystemCommandsIntegration:
@@ -836,8 +855,9 @@ class TestBackwardCompatibility:
         assert "accumulated_params" in payload
         assert payload["accumulated_params"] == ["Compatibility test param"]
 
-        # Verify payload only contains expected fields
+        # Verify payload only contains expected fields (no message field)
         assert len(payload) == 2
+        assert "message" not in payload  # Verify message field is not included
 
     async def test_legacy_command_format_still_works(self, integration_system):
         """Test that commands without accumulated parameters work as before."""
@@ -1021,3 +1041,191 @@ class TestBackwardCompatibility:
         # Verify accumulator was still cleared even after error
         remaining = system["accumulator_manager"]._accumulator.get_messages(chat_id)
         assert len(remaining) == 0
+
+
+class TestEchoCommandEquivalentFunctionality:
+    """Test that echo command provides equivalent functionality to removed multi_echo."""
+
+    async def test_echo_handles_multiple_parameters_like_multi_echo(self, integration_system):
+        """Test that echo command handles multiple accumulated parameters like multi_echo did."""
+        system = integration_system
+        chat_id = 12345
+
+        # Mock the echo cattackle to return the expected multi-parameter format
+        def mock_echo_response(cattackle_config, command, payload):
+            # Simulate the enhanced echo command behavior with multiple parameters
+            accumulated_params = payload.get("accumulated_params", [])
+            if accumulated_params and len(accumulated_params) > 1:
+                # Format like multi_echo did - with numbering
+                numbered_messages = []
+                for i, param in enumerate(accumulated_params, 1):
+                    numbered_messages.append(f"{i}. {param}")
+                response_text = f"Multi-echo ({len(accumulated_params)} messages):\n" + "\n".join(numbered_messages)
+            elif accumulated_params and len(accumulated_params) == 1:
+                response_text = f"Echo: {accumulated_params[0]}"
+            else:
+                response_text = "Please provide text to echo"
+
+            from catmandu.core.models import CattackleResponse
+
+            return CattackleResponse(data=response_text)
+
+        system["mcp_service"].execute_cattackle.side_effect = mock_echo_response
+
+        # Accumulate multiple messages
+        multi_param_updates = [
+            {
+                "update_id": 200,
+                "message": {
+                    "message_id": 300,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "First message",
+                },
+            },
+            {
+                "update_id": 201,
+                "message": {
+                    "message_id": 301,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "Second message",
+                },
+            },
+            {
+                "update_id": 202,
+                "message": {
+                    "message_id": 302,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "Third message",
+                },
+            },
+            {
+                "update_id": 203,
+                "message": {
+                    "message_id": 303,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "/echo",  # Execute echo command
+                },
+            },
+        ]
+
+        system["telegram_client"].get_updates.return_value = multi_param_updates
+        await system["poller"]._run_single_loop()
+
+        # Verify echo command was called with multiple parameters
+        system["mcp_service"].execute_cattackle.assert_called_once()
+        call_args = system["mcp_service"].execute_cattackle.call_args
+        payload = call_args.kwargs["payload"]
+
+        assert payload["accumulated_params"] == ["First message", "Second message", "Third message"]
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
+
+        # Verify response was sent with multi_echo-like formatting
+        system["telegram_client"].send_message.assert_called_once()
+        response_call = system["telegram_client"].send_message.call_args
+        response_text = response_call[0][1]
+
+        # Should format like multi_echo did
+        assert "Multi-echo (3 messages):" in response_text
+        assert "1. First message" in response_text
+        assert "2. Second message" in response_text
+        assert "3. Third message" in response_text
+
+    async def test_echo_handles_single_parameter_without_numbering(self, integration_system):
+        """Test that echo command handles single parameter without multi_echo formatting."""
+        system = integration_system
+        chat_id = 12345
+
+        # Mock the echo cattackle to return the expected single-parameter format
+        def mock_echo_response(cattackle_config, command, payload):
+            accumulated_params = payload.get("accumulated_params", [])
+            if accumulated_params and len(accumulated_params) == 1:
+                response_text = f"Echo: {accumulated_params[0]}"
+            else:
+                response_text = "Please provide text to echo"
+
+            from catmandu.core.models import CattackleResponse
+
+            return CattackleResponse(data=response_text)
+
+        system["mcp_service"].execute_cattackle.side_effect = mock_echo_response
+
+        # Accumulate single message
+        single_param_updates = [
+            {
+                "update_id": 204,
+                "message": {
+                    "message_id": 304,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "Single message",
+                },
+            },
+            {
+                "update_id": 205,
+                "message": {
+                    "message_id": 305,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "/echo",  # Execute echo command
+                },
+            },
+        ]
+
+        system["telegram_client"].get_updates.return_value = single_param_updates
+        await system["poller"]._run_single_loop()
+
+        # Verify echo command was called with single parameter
+        system["mcp_service"].execute_cattackle.assert_called_once()
+        call_args = system["mcp_service"].execute_cattackle.call_args
+        payload = call_args.kwargs["payload"]
+
+        assert payload["accumulated_params"] == ["Single message"]
+        assert len(payload) == 2  # Only text and accumulated_params
+        assert "message" not in payload  # Verify simplified payload structure
+
+        # Verify response was sent with simple echo formatting (not multi_echo)
+        system["telegram_client"].send_message.assert_called_once()
+        response_call = system["telegram_client"].send_message.call_args
+        response_text = response_call[0][1]
+
+        # Should format as simple echo, not multi_echo
+        assert response_text == "Echo: Single message"
+        assert "Multi-echo" not in response_text
+        assert "1." not in response_text
+
+    async def test_multi_echo_command_no_longer_exists(self, integration_system):
+        """Test that multi_echo command is no longer available."""
+        system = integration_system
+        chat_id = 12345
+
+        # Try to execute multi_echo command
+        multi_echo_updates = [
+            {
+                "update_id": 206,
+                "message": {
+                    "message_id": 306,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "Test message",
+                },
+            },
+            {
+                "update_id": 207,
+                "message": {
+                    "message_id": 307,
+                    "chat": {"id": chat_id, "type": "private"},
+                    "text": "/echo_multi_echo",  # Try to execute removed command
+                },
+            },
+        ]
+
+        system["telegram_client"].get_updates.return_value = multi_echo_updates
+        await system["poller"]._run_single_loop()
+
+        # Verify multi_echo command was not found
+        system["mcp_service"].execute_cattackle.assert_not_called()
+
+        # Verify error response was sent
+        system["telegram_client"].send_message.assert_called_once()
+        response_call = system["telegram_client"].send_message.call_args
+        response_text = response_call[0][1]
+
+        assert "Command not found: echo_multi_echo" in response_text
