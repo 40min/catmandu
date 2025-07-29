@@ -21,7 +21,10 @@ from catmandu.core.models import (
 @pytest.fixture
 def mcp_client():
     """Create a mock MCP client."""
-    return AsyncMock(spec=McpClient)
+    client = AsyncMock(spec=McpClient)
+    # Pre-configure common return values to avoid repeated setup
+    client.check_session_health.return_value = True
+    return client
 
 
 @pytest.fixture
@@ -49,8 +52,8 @@ def cattackle_config():
                 env={"TEST": "true"},
                 cwd=".",
             ),
-            timeout=10.0,
-            max_retries=2,
+            timeout=0.1,  # Much shorter timeout for tests
+            max_retries=1,  # Fewer retries for faster tests
         ),
     )
 
@@ -97,22 +100,20 @@ async def test_execute_cattackle_timeout_with_retry(mcp_service, mcp_client, cat
     ]
 
     # Mock session creation and sleep to speed up test
-    with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
-        with patch("asyncio.sleep", return_value=None):  # Skip waiting during retries
-            response = await mcp_service.execute_cattackle(
-                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
-            )
+    with (
+        patch.object(mcp_service, "_get_or_create_session", return_value=mock_session),
+        patch("catmandu.core.infrastructure.mcp_manager.asyncio.sleep"),
+    ):  # Mock sleep in the actual module
+        response = await mcp_service.execute_cattackle(
+            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+        )
 
-            # Verify response from second (successful) call is parsed correctly
-            assert response.data == "success after retry"
-            assert response.error is None
+        # Verify response from second (successful) call is parsed correctly
+        assert response.data == "success after retry"
+        assert response.error is None
 
-            # Verify client was called twice
-            assert mcp_client.call_tool.call_count == 2
-
-            # We can't easily verify close_session was called after the first failure
-            # in the original call, so we'll just verify the call count is correct
-            assert mcp_client.call_tool.call_count == 2
+        # Verify client was called twice
+        assert mcp_client.call_tool.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -125,15 +126,17 @@ async def test_execute_cattackle_all_retries_fail(mcp_service, mcp_client, catta
     mcp_client.call_tool.side_effect = asyncio.TimeoutError()
 
     # Mock session creation and sleep to speed up test
-    with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
-        with patch("asyncio.sleep", return_value=None):  # Skip waiting during retries
-            with pytest.raises(CattackleExecutionError, match="timed out"):
-                await mcp_service.execute_cattackle(
-                    cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
-                )
+    with (
+        patch.object(mcp_service, "_get_or_create_session", return_value=mock_session),
+        patch("catmandu.core.infrastructure.mcp_manager.asyncio.sleep"),
+    ):  # Mock sleep in the actual module
+        with pytest.raises(CattackleExecutionError, match="timed out"):
+            await mcp_service.execute_cattackle(
+                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            )
 
-            # Verify client was called max_retries + 1 times (initial + retries)
-            assert mcp_client.call_tool.call_count == cattackle_config.mcp.max_retries + 1
+        # Verify client was called max_retries + 1 times (initial + retries)
+        assert mcp_client.call_tool.call_count == cattackle_config.mcp.max_retries + 1
 
 
 @pytest.mark.asyncio
@@ -141,15 +144,12 @@ async def test_get_or_create_session_existing(mcp_service, mcp_client, cattackle
     """Test getting an existing healthy session."""
     # Create mock session and exit stack
     mock_session = AsyncMock(spec=ClientSession)
-    mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+    mock_exit_stack = MagicMock(spec=AsyncExitStack)  # Use MagicMock for exit stack
 
     # Add to active contexts
     mcp_service._active_contexts[cattackle_config.name] = (mock_exit_stack, mock_session)
 
-    # Mock health check to return True (session is healthy)
-    mcp_client.check_session_health.return_value = True
-
-    # Get session
+    # Get session (health check already returns True from fixture)
     session = await mcp_service._get_or_create_session(cattackle_config)
 
     # Verify we got the existing session
@@ -199,7 +199,7 @@ async def test_get_or_create_session_new(mcp_service, mcp_client, cattackle_conf
     """Test creating a new session when none exists."""
     # Create mock session and exit stack
     mock_session = AsyncMock(spec=ClientSession)
-    mock_exit_stack = AsyncMock(spec=AsyncExitStack)
+    mock_exit_stack = MagicMock(spec=AsyncExitStack)  # Use MagicMock for exit stack
 
     # Mock create_session to return new session
     mcp_client.create_session.return_value = (mock_exit_stack, mock_session)
@@ -221,7 +221,7 @@ async def test_get_or_create_session_new(mcp_service, mcp_client, cattackle_conf
 async def test_close_session(mcp_service):
     """Test closing a session."""
     # Create mock session and exit stack
-    mock_session = AsyncMock(spec=ClientSession)
+    mock_session = MagicMock(spec=ClientSession)  # Use MagicMock for session
     mock_exit_stack = AsyncMock(spec=AsyncExitStack)
 
     # Add to active contexts
@@ -242,9 +242,9 @@ async def test_close_session(mcp_service):
 async def test_close_all_sessions(mcp_service):
     """Test closing all sessions."""
     # Create mock sessions and exit stacks
-    mock_session1 = AsyncMock(spec=ClientSession)
+    mock_session1 = MagicMock(spec=ClientSession)  # Use MagicMock for sessions
     mock_exit_stack1 = AsyncMock(spec=AsyncExitStack)
-    mock_session2 = AsyncMock(spec=ClientSession)
+    mock_session2 = MagicMock(spec=ClientSession)
     mock_exit_stack2 = AsyncMock(spec=AsyncExitStack)
 
     # Add to active contexts
