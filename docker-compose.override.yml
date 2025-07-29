@@ -1,0 +1,42 @@
+# Development overrides for docker-compose.yml
+# This file is automatically loaded by docker-compose for local development
+
+services:
+  catmandu-core:
+    build:
+      target: development
+    volumes:
+      # Volume mounts for live code reloading during development
+      - ./src:/app/src:ro
+      - ./cattackles:/app/cattackles:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./uv.lock:/app/uv.lock:ro
+      # Persist data volumes
+      - update_data:/app/.data
+      - chat_logs:/app/logs
+    environment:
+      # Development-specific environment variables
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - UVICORN_RELOAD=true
+    command:
+      [
+        "uv",
+        "run",
+        "uvicorn",
+        "catmandu.main:create_app",
+        "--factory",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
+
+  echo-cattackle:
+    volumes:
+      # Volume mounts for live code reloading during development
+      - ./cattackles/echo/src:/app/src:ro
+      - ./cattackles/echo/requirements.txt:/app/requirements.txt:ro
+    environment:
+      # Development-specific environment variables
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}

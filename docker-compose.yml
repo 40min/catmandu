@@ -1,0 +1,81 @@
+services:
+  catmandu-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: catmandu-core
+    environment:
+      # Required environment variables
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+
+      # Optional configuration with defaults
+      - UPDATE_ID_FILE_PATH=${UPDATE_ID_FILE_PATH:-.data/update_id.txt}
+      - MAX_MESSAGES_PER_CHAT=${MAX_MESSAGES_PER_CHAT:-100}
+      - MAX_MESSAGE_LENGTH=${MAX_MESSAGE_LENGTH:-1000}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Python environment
+      - PYTHONPATH=/app/src
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist update ID file for Telegram polling offset
+      - update_data:/app/.data
+      # Persist chat logs
+      - chat_logs:/app/logs
+    depends_on:
+      echo-cattackle:
+        condition: service_healthy
+    networks:
+      - catmandu-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  echo-cattackle:
+    build:
+      context: ./cattackles/echo
+      dockerfile: Dockerfile
+      target: production
+    container_name: echo-cattackle
+    environment:
+      # Optional Gemini API configuration
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MCP_SERVER_PORT=8001
+    expose:
+      - "8001"
+    networks:
+      - catmandu-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; httpx.get('http://localhost:8001/mcp', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  catmandu-network:
+    driver: bridge
+    name: catmandu-network
+
+volumes:
+  update_data:
+    name: catmandu-update-data
+  chat_logs:
+    name: catmandu-chat-logs
