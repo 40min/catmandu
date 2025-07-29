@@ -1,7 +1,7 @@
 ---
 id: TASK-2025-011
 title: 'Phase 3: Create Integration Test for Message Flow'
-status: backlog
+status: done
 priority: high
 type: chore
 estimate: 'M'
@@ -9,10 +9,7 @@ assignee: '@catmandu-devs'
 created: 2025-07-16
 updated: 2025-07-16
 parents: [TASK-2025-001]
-arch_refs:
-  - ARCH-core-message-router
-  - ARCH-core-mcp-client-manager
-  - ARCH-core-telegram-poller
+arch_refs: [ARCH-core-mcp-client-manager, ARCH-cattackle-spec]
 audit_log:
   - {date: 2025-07-16, user: '@AI-DocArchitect', action: 'created with status backlog'}
 ---

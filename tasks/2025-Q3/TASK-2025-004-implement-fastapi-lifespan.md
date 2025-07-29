@@ -1,13 +1,13 @@
 ---
 id: TASK-2025-004
 title: 'Phase 1: Implement Basic FastAPI App with Lifespan Events'
-status: backlog
+status: done
 priority: high
 type: feature
 estimate: 'S'
 assignee: '@catmandu-devs'
 created: 2025-07-16
-updated: 2025-07-16
+updated: 2025-07-17
 parents: [TASK-2025-001]
 arch_refs: [ARCH-core-main-process]
 audit_log:

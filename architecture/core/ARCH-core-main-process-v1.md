@@ -1,36 +1,30 @@
 ---
-id: ARCH-core-main-process
-title: "Core: Main Process"
-type: component
 layer: application
 owner: '@catmandu-devs'
 version: v1
-status: planned
+status: current
 created: 2025-07-16
 updated: 2025-07-16
 tags: [core, fastapi, poller]
 depends_on:
   - ARCH-core-telegram-poller
-  - ARCH-core-message-router
 referenced_by: []
 ---
-## Context
-The Catmandu Core Main Process is the central nervous system of the bot. It serves as the primary entry point and orchestrates all core functionalities. It is designed as a single process that handles both incoming web requests for administration and the primary task of fetching and processing Telegram updates.
+# ARCH-core-main-process-v1
 
-## Structure
-The process is built around a FastAPI application. It leverages FastAPI's `lifespan` events to manage background tasks.
+## Overview
+The Main Process module is the central orchestrator of the Catmandu application. It initializes and manages the core components, including the API server, background task runners, and event handling mechanisms.
 
-1.  **FastAPI Web Server:** Runs in the main `asyncio` event loop. It exposes administrative and monitoring endpoints such as `/health`, `/cattackles`, and `/admin/reload`.
-2.  **Background Tasks:** A set of `asyncio` tasks that run concurrently with the web server. The most critical background task is the `Telegram Poller`. These tasks are started and stopped gracefully using the `lifespan` manager.
+## Responsibilities
+- Initialize the FastAPI application.
+- Load and configure core services (e.g., registry, message router).
+- Start background tasks and pollers.
+- Handle application lifecycle events.
 
-Key file: `main.py`
-
-## Behavior
-On startup, the `lifespan` event handler initializes all necessary services (e.g., Cattackle Registry, MCP Client Manager) and starts the Telegram Polling background task. The FastAPI server then begins listening for HTTP requests on its configured port.
-
-The poller continuously fetches updates from the Telegram API and passes them to the Message Router for processing. The web server handles administrative requests in parallel. On shutdown, the `lifespan` event handler gracefully stops the background tasks.
+## Architecture
+The main process is built around FastAPI, leveraging its asynchronous capabilities and robust ecosystem. It sets up the application structure, registers necessary components, and ensures smooth operation of all modules.
 
 ## Evolution
 ### Planned
-- **v1:** Initial implementation using FastAPI with a background polling task.
-- Future versions might explore a multi-process architecture if performance requirements demand it, separating the web server from the poller.
+- Integrate with the Cattackle Registry to dynamically load and manage cattackles.
+- Implement robust error handling and logging across the application.

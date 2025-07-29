@@ -1,0 +1,26 @@
+[cattackle]
+name = "echo"
+version = "0.1.0"
+description = "A funny cattackle that echoes text and generates jokes using AI."
+tags = ["utility", "fun", "ai"]
+
+[cattackle.commands]
+echo = { description = "Echoes back the given text. Supports both immediate parameters and accumulated messages. Usage: /echo_echo <your text> or send messages first then /echo_echo" }
+ping = { description = "Returns a simple pong response with parameter information." }
+joke = { description = "Generates a funny anekdot about the given topic. Supports accumulated parameters. Usage: /echo_joke <your topic> or send a message first then /echo_joke" }
+
+[cattackle.mcp]
+timeout = 30.0
+max_retries = 3
+
+[cattackle.mcp.transport]
+type = "http"
+url = "http://127.0.0.1:8001/mcp"
+command = "python"
+args = ["cattackles/echo/src/server.py", "--port", "8001"]
+env = { "PYTHONPATH" = ".", "LOG_LEVEL" = "INFO" }
+cwd = "."
+
+[cattackle.settings]
+max_payload_size = 1024
+enable_logging = true

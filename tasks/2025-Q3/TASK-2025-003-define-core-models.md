@@ -1,13 +1,13 @@
 ---
 id: TASK-2025-003
 title: 'Phase 1: Define Core Pydantic Models'
-status: backlog
+status: done
 priority: high
 type: feature
 estimate: 'S'
 assignee: '@catmandu-devs'
 created: 2025-07-16
-updated: 2025-07-16
+updated: 2025-07-17
 parents: [TASK-2025-001]
 arch_refs: [ARCH-cattackle-spec]
 audit_log:

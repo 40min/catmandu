@@ -1,0 +1,2 @@
+- When work with tasks always use dartboard named Flocus
+- Use `make test` to run tests

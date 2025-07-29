@@ -1,5 +1,7 @@
 # Catmandu
 
+![Catmandu Logo](resources/catmandu_logo.png)
+
 Catmandu is a modular and extensible Telegram bot built on a core system that handles the primary interactions with the Telegram API, and a pluggable module system for adding new features. These modules, called "cattackles," can be developed in any language and communicate with the core system over a standardized protocol.
 
 ## About The Project
@@ -7,6 +9,7 @@ Catmandu is a modular and extensible Telegram bot built on a core system that ha
 The core of Catmandu is a Python application using FastAPI that runs a continuous polling process to fetch updates from Telegram. It uses a dynamic registry to discover and manage available cattackles, and a message router to delegate commands to the appropriate module. This architecture allows for a clean separation of concerns, making it easy to develop and maintain new functionalities without altering the core application.
 
 Key features:
+
 - **Modular Architecture:** Easily add new features through independent "cattackle" modules.
 - **Language Agnostic:** Cattackles can be written in any programming language.
 - **Dynamic Discovery:** New cattackles are discovered automatically at startup or via an admin endpoint.
@@ -34,7 +37,7 @@ graph TD
         subgraph "Web Server"
             FastAPI_Server[FastAPI Server<br>/health, /cattackles]
         end
-        
+
         Telegram_Poller --> MessageRouter{Message Router}
         MessageRouter --> CattackleRegistry[Cattackle Registry<br>In-Memory Cache]
         MessageRouter --> MCP_Client_Manager[MCP Client Manager]
@@ -53,7 +56,8 @@ graph TD
     MCP_Client_Manager --MCP Call--> Cattackle_Weather
     MCP_Client_Manager --MCP Call--> Cattackle_Other
 ```
-*Diagram: Flow of a user command through the Catmandu polling system.*
+
+_Diagram: Flow of a user command through the Catmandu polling system._
 
 For more detailed information, please refer to the documents in the `architecture/` directory.
 
@@ -72,7 +76,7 @@ For more detailed information, please refer to the documents in the `architectur
    ```
 2. Install Python packages
    ```sh
-   uv pip install -r requirements.txt
+   uv sync
    ```
 
 ## Usage
@@ -80,21 +84,33 @@ For more detailed information, please refer to the documents in the `architectur
 1.  **Set up environment variables:**
 
     Create a `.env` file in the root directory and add your Telegram bot token:
+
     ```
     TELEGRAM_BOT_TOKEN=your_bot_token
     ```
 
+    Optional configuration for message accumulation:
+
+    ```
+    # Maximum number of messages to store per chat (default: 100)
+    MAX_MESSAGES_PER_CHAT=100
+
+    # Maximum length of individual messages (default: 1000)
+    MAX_MESSAGE_LENGTH=1000
+    ```
+
 2.  **Run the main application:**
     ```sh
-    uvicorn main:app --reload
+    uvicorn catmandu.main:app --reload
     ```
 3.  **Run a cattackle:**
 
     Each cattackle is a separate process. To run the example "echo" cattackle:
+
     ```sh
     cd cattackles/echo
     # Install its dependencies
-    uv pip install -r requirements.txt 
+    uv pip install -r requirements.txt
     # Run the cattackle server
     python src/server.py
     ```
@@ -104,6 +120,7 @@ For more detailed information, please refer to the documents in the `architectur
 A cattackle is an independent, pluggable module that provides specific features. To be discovered by the core system, a cattackle must have a `cattackle.toml` manifest file in its root directory.
 
 Example `cattackle.toml`:
+
 ```toml
 [cattackle]
 name = "my-cattackle"
@@ -116,15 +133,16 @@ mycommand = { description = "Description of mycommand" }
 [cattackle.mcp]
 transport = "stdio" # "stdio", "websocket", or "http"
 ```
+
 For more details, see the [Cattackle Specification](architecture/spec/ARCH-cattackle-spec-v1.md).
 
 ## API Endpoints
 
 The core application exposes a few administrative endpoints:
 
--   `GET /health`: Returns the operational status of the service.
--   `GET /cattackles`: Returns a list of all discovered cattackles and their configurations.
--   `POST /admin/reload`: Triggers a re-scan of the cattackles directory to discover new modules.
+- `GET /health`: Returns the operational status of the service.
+- `GET /cattackles`: Returns a list of all discovered cattackles and their configurations.
+- `POST /admin/reload`: Triggers a re-scan of the cattackles directory to discover new modules.
 
 ## Contributing
 
