@@ -1,7 +1,7 @@
 import asyncio
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 
@@ -217,39 +217,28 @@ class TestTelegramPoller:
 
     async def test_stop_functionality(self, telegram_poller, mock_telegram_client, mock_message_router):
         """Test that TelegramPoller stops correctly when stop() is called."""
-        # Setup - make get_updates simulate the real behavior with a delay
+        # Setup - control the number of iterations before stopping
         call_count = 0
+        max_calls = 3
 
-        async def mock_get_updates_with_realistic_behavior(*args, **kwargs):
+        async def mock_get_updates_controlled(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            # Simulate the timeout behavior of real Telegram API
-            await asyncio.sleep(0.01)  # Small delay to simulate network call
+            # After a few calls, trigger stop to prevent infinite loop
+            if call_count >= max_calls:
+                asyncio.create_task(telegram_poller.stop())
+            # Always yield control to event loop
+            await asyncio.sleep(0)
             return []
 
-        mock_telegram_client.get_updates.side_effect = mock_get_updates_with_realistic_behavior
+        mock_telegram_client.get_updates.side_effect = mock_get_updates_controlled
 
-        # Start the poller in a task
-        poller_task = asyncio.create_task(telegram_poller.run())
+        # Execute - run the poller (it will stop itself after max_calls)
+        await telegram_poller.run()
 
-        # Let it run briefly to ensure it's started and makes at least one call
-        await asyncio.sleep(0.05)
-
-        # Verify it's running (made at least one call)
-        assert call_count > 0
-
-        # Stop the poller
-        await telegram_poller.stop()
-
-        # Wait for the task to complete with a timeout
-        try:
-            await asyncio.wait_for(poller_task, timeout=1.0)
-        except asyncio.TimeoutError:
-            poller_task.cancel()
-            pytest.fail("Poller did not stop within timeout")
-
-        # Verify it stopped
+        # Verify it stopped and made the expected calls
         assert telegram_poller._should_stop.is_set()
+        assert call_count >= max_calls
 
 
 class TestTelegramPollerBackoff:
@@ -267,7 +256,10 @@ class TestTelegramPollerBackoff:
         assert result is True
         mock_telegram_client.send_message.assert_called_once_with(789, "Test message")
 
-    async def test_send_message_with_backoff_success_after_retries(self, telegram_poller, mock_telegram_client):
+    @patch("asyncio.sleep")
+    async def test_send_message_with_backoff_success_after_retries(
+        self, mock_sleep, telegram_poller, mock_telegram_client
+    ):
         """Test that message sending succeeds after initial failures."""
         # Setup - fail twice, then succeed
         mock_telegram_client.send_message.side_effect = [
@@ -284,8 +276,11 @@ class TestTelegramPollerBackoff:
         assert mock_telegram_client.send_message.call_count == 3
         expected_calls = [call(789, "Test message")] * 3
         mock_telegram_client.send_message.assert_has_calls(expected_calls)
+        # Should have slept twice (after first two failures)
+        assert mock_sleep.call_count == 2
 
-    async def test_send_message_with_backoff_all_retries_fail(self, telegram_poller, mock_telegram_client):
+    @patch("asyncio.sleep")
+    async def test_send_message_with_backoff_all_retries_fail(self, mock_sleep, telegram_poller, mock_telegram_client):
         """Test that message sending fails after all retries are exhausted."""
         # Setup - all attempts fail
         mock_telegram_client.send_message.return_value = None
@@ -296,21 +291,28 @@ class TestTelegramPollerBackoff:
         # Verify
         assert result is False
         assert mock_telegram_client.send_message.call_count == 3  # Initial + 2 retries
+        # Should have slept twice (after each failure except the last)
+        assert mock_sleep.call_count == 2
 
-    async def test_send_message_with_backoff_timing(self, telegram_poller, mock_telegram_client):
+    @patch("asyncio.sleep")
+    async def test_send_message_with_backoff_timing(self, mock_sleep, telegram_poller, mock_telegram_client):
         """Test that exponential backoff timing works correctly."""
         # Setup - all attempts fail to test timing
         mock_telegram_client.send_message.return_value = None
 
-        # Execute with timing measurement
-        start_time = asyncio.get_event_loop().time()
+        # Execute
         result = await telegram_poller._send_message_with_backoff(789, "Test message", max_retries=2, base_delay=0.1)
-        end_time = asyncio.get_event_loop().time()
 
         # Verify
         assert result is False
-        # Should have delays of ~0.1s and ~0.2s (plus jitter), so total > 0.3s
-        assert end_time - start_time >= 0.25  # Account for jitter and timing variance
+        # Should have called sleep twice with exponential backoff
+        assert mock_sleep.call_count == 2
+        # First delay: base_delay * (2^0) + jitter = 0.1 + [0,1]
+        first_delay = mock_sleep.call_args_list[0][0][0]
+        assert 0.1 <= first_delay <= 1.1  # 0.1 + jitter [0,1]
+        # Second delay: base_delay * (2^1) + jitter = 0.2 + [0,1]
+        second_delay = mock_sleep.call_args_list[1][0][0]
+        assert 0.2 <= second_delay <= 1.2  # 0.2 + jitter [0,1]
 
     async def test_send_message_with_backoff_zero_retries(self, telegram_poller, mock_telegram_client):
         """Test that zero retries configuration works correctly."""
@@ -324,7 +326,10 @@ class TestTelegramPollerBackoff:
         assert result is False
         mock_telegram_client.send_message.assert_called_once_with(789, "Test message")
 
-    async def test_run_single_loop_uses_backoff(self, telegram_poller, mock_telegram_client, mock_message_router):
+    @patch("asyncio.sleep")
+    async def test_run_single_loop_uses_backoff(
+        self, mock_sleep, telegram_poller, mock_telegram_client, mock_message_router
+    ):
         """Test that _run_single_loop uses the backoff mechanism for sending messages."""
         # Setup
         update = {
@@ -347,9 +352,12 @@ class TestTelegramPollerBackoff:
         assert mock_telegram_client.send_message.call_count == 2
         expected_calls = [call(789, "Response message")] * 2
         mock_telegram_client.send_message.assert_has_calls(expected_calls)
+        # Should have slept once between attempts
+        mock_sleep.assert_called_once()
 
+    @patch("asyncio.sleep")
     async def test_run_single_loop_continues_after_send_failure(
-        self, telegram_poller, mock_telegram_client, mock_message_router
+        self, mock_sleep, telegram_poller, mock_telegram_client, mock_message_router
     ):
         """Test that processing continues even if message sending ultimately fails."""
         # Setup - multiple updates, one with failed sending
@@ -389,8 +397,11 @@ class TestTelegramPollerBackoff:
         # Verify both updates were processed despite first send failure
         assert mock_message_router.process_update.call_count == 2
         assert call_count == 5  # 4 failed attempts for first message + 1 success for second
+        # Should have slept 3 times (after each failed attempt for first message)
+        assert mock_sleep.call_count == 3
 
-    async def test_send_message_with_backoff_custom_parameters(self, telegram_poller, mock_telegram_client):
+    @patch("asyncio.sleep")
+    async def test_send_message_with_backoff_custom_parameters(self, mock_sleep, telegram_poller, mock_telegram_client):
         """Test that custom backoff parameters work correctly."""
         # Setup - fail first attempt, succeed second
         mock_telegram_client.send_message.side_effect = [None, {"message_id": 123}]
@@ -401,3 +412,7 @@ class TestTelegramPollerBackoff:
         # Verify
         assert result is True
         assert mock_telegram_client.send_message.call_count == 2
+        # Should have slept once with base_delay of 0.05
+        mock_sleep.assert_called_once()
+        delay = mock_sleep.call_args[0][0]
+        assert 0.05 <= delay <= 1.05  # 0.05 + jitter [0,1]
