@@ -162,6 +162,43 @@ Just return the joke, no additional text."""
         return json.dumps({"data": "", "error": f"Failed to generate joke: {str(e)}"})
 
 
+def mcp_tool_wrapper(tool_func):
+    """Decorator that converts tool functions to MCP format."""
+
+    async def wrapper(arguments: dict) -> list[types.ContentBlock]:
+        text = arguments.get("text", "")
+        accumulated_params = arguments.get("accumulated_params", [])
+
+        response = await tool_func(text, accumulated_params)
+
+        return [
+            types.TextContent(
+                type="text",
+                text=response,
+            )
+        ]
+
+    return wrapper
+
+
+@mcp_tool_wrapper
+def echo_tool(text: str, accumulated_params: list) -> str:
+    """HTTP MCP wrapper for echo function."""
+    return echo(text, accumulated_params)
+
+
+@mcp_tool_wrapper
+def ping_tool(text: str, accumulated_params: list) -> str:
+    """HTTP MCP wrapper for ping function."""
+    return ping(text, accumulated_params)
+
+
+@mcp_tool_wrapper
+def joke_tool(text: str, accumulated_params: list) -> str:
+    """HTTP MCP wrapper for joke function."""
+    return joke(text, accumulated_params)
+
+
 @click.command()
 @click.option("--port", default=8001, help="Port to listen on for HTTP")
 @click.option(
@@ -268,48 +305,6 @@ def main(
                     "required": ["text"],
                 },
             ),
-        ]
-
-    async def echo_tool(arguments: dict) -> list[types.ContentBlock]:
-        """HTTP MCP wrapper for echo function."""
-        text = arguments.get("text", "")
-        accumulated_params = arguments.get("accumulated_params", [])
-
-        response = await echo(text, accumulated_params)
-
-        return [
-            types.TextContent(
-                type="text",
-                text=response,
-            )
-        ]
-
-    async def ping_tool(arguments: dict) -> list[types.ContentBlock]:
-        """HTTP MCP wrapper for ping function."""
-        text = arguments.get("text", "")
-        accumulated_params = arguments.get("accumulated_params", [])
-
-        response = await ping(text, accumulated_params)
-
-        return [
-            types.TextContent(
-                type="text",
-                text=response,
-            )
-        ]
-
-    async def joke_tool(arguments: dict) -> list[types.ContentBlock]:
-        """HTTP MCP wrapper for joke function."""
-        text = arguments.get("text", "")
-        accumulated_params = arguments.get("accumulated_params", [])
-
-        response = await joke(text, accumulated_params)
-
-        return [
-            types.TextContent(
-                type="text",
-                text=response,
-            )
         ]
 
     # Create the session manager with stateless mode
