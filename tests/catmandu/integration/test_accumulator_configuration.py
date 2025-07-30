@@ -11,7 +11,7 @@ class TestAccumulatorConfiguration:
 
     def test_accumulator_uses_default_config_values(self):
         """Test that MessageAccumulator uses default configuration values."""
-        settings = Settings(telegram_bot_token="dummy_token")
+        settings = Settings()
 
         accumulator = MessageAccumulator(
             max_messages_per_chat=settings.max_messages_per_chat, max_message_length=settings.max_message_length

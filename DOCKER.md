@@ -77,9 +77,10 @@ make docker-clean         # Reset everything
 
 - `GEMINI_API_KEY`: For AI joke generation
 - `GEMINI_MODEL`: Gemini model to use (default: gemini-1.5-flash)
-- `LOG_LEVEL`: Logging level (default: INFO)
+- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL - default: INFO)
 - `MAX_MESSAGES_PER_CHAT`: Message accumulation limit (default: 100)
 - `MAX_MESSAGE_LENGTH`: Maximum message length (default: 1000)
+- `MCP_SERVER_PORT`: Port for echo cattackle MCP server (default: 8001)
 
 ## Development
 

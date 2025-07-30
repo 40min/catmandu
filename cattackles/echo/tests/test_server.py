@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -8,6 +9,18 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from server import echo, joke, ping  # noqa
+
+
+@pytest.fixture(autouse=True)
+def mock_gemini_model():
+    """Mock the Gemini model for all tests."""
+    mock_model = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "This is a test joke about the topic!"
+    mock_model.generate_content.return_value = mock_response
+
+    with patch("server.model", mock_model):
+        yield mock_model
 
 
 @pytest.mark.asyncio
@@ -83,20 +96,17 @@ async def test_joke_command_whitespace_text():
 
 
 @pytest.mark.asyncio
-async def test_joke_command_no_api_key():
-    """Tests that the joke command handles missing API key gracefully."""
-    # This test assumes no GEMINI_API_KEY is set in test environment
+async def test_joke_command_with_api_key():
+    """Tests that the joke command works with API key configured."""
+    # API key is now required and set in test environment
     text = "cats"
     result = await joke(text)
 
     # Parse the JSON response
     parsed = json.loads(result)
-    # Should either work (if API key is set) or show error message
-    if parsed["error"]:
-        assert "not available" in parsed["error"] or "configure GEMINI_API_KEY" in parsed["error"]
-    else:
-        # If it works, should have some joke content
-        assert len(parsed["data"]) > 0
+    # Should have proper structure (may have error due to test API key being invalid)
+    assert "data" in parsed
+    assert "error" in parsed
 
 
 # Tests for accumulated parameters support
@@ -201,12 +211,9 @@ async def test_joke_with_accumulated_params():
     result = await joke(text, accumulated_params=accumulated_params)
 
     parsed = json.loads(result)
-    # Should either work (if API key is set) or show error message
-    if parsed["error"]:
-        assert "not available" in parsed["error"] or "configure GEMINI_API_KEY" in parsed["error"]
-    else:
-        # If it works, should have some joke content
-        assert len(parsed["data"]) > 0
+    # Should work with mocked model
+    assert parsed["error"] is None
+    assert len(parsed["data"]) > 0
 
 
 @pytest.mark.asyncio
@@ -218,12 +225,9 @@ async def test_joke_prefers_accumulated_over_immediate():
     result = await joke(text, accumulated_params=accumulated_params)
 
     parsed = json.loads(result)
-    # Should either work (if API key is set) or show error message
-    if parsed["error"]:
-        assert "not available" in parsed["error"] or "configure GEMINI_API_KEY" in parsed["error"]
-    else:
-        # If it works, should have some joke content
-        assert len(parsed["data"]) > 0
+    # Should work with mocked model
+    assert parsed["error"] is None
+    assert len(parsed["data"]) > 0
 
 
 @pytest.mark.asyncio
@@ -234,12 +238,9 @@ async def test_joke_backward_compatibility():
     result = await joke(text)
 
     parsed = json.loads(result)
-    # Should either work (if API key is set) or show error message
-    if parsed["error"]:
-        assert "not available" in parsed["error"] or "configure GEMINI_API_KEY" in parsed["error"]
-    else:
-        # If it works, should have some joke content
-        assert len(parsed["data"]) > 0
+    # Should work with mocked model
+    assert parsed["error"] is None
+    assert len(parsed["data"]) > 0
 
 
 @pytest.mark.asyncio
@@ -261,8 +262,9 @@ async def test_all_commands_handle_empty_accumulated_params():
     # Test joke
     result = await joke(text, accumulated_params=accumulated_params)
     parsed = json.loads(result)
-    # Should either work or show API key error
-    assert parsed["error"] is None or "not available" in parsed["error"]
+    # Should work with mocked model
+    assert parsed["error"] is None
+    assert len(parsed["data"]) > 0
 
 
 @pytest.mark.asyncio

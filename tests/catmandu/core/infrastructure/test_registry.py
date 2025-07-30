@@ -11,7 +11,7 @@ def registry(fs):
     # Create cattackles directory if it doesn't exist
     if not fs.exists("cattackles"):
         fs.create_dir("cattackles")
-    settings = Settings(cattackles_dir="cattackles", telegram_bot_token="dummy_token")
+    settings = Settings()
     return CattackleRegistry(config=settings)
 
 

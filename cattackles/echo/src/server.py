@@ -1,7 +1,6 @@
 import contextlib
 import json
 import logging
-import os
 import sys
 from collections.abc import AsyncIterator
 
@@ -9,6 +8,7 @@ import click
 import google.generativeai as genai
 import mcp.types as types
 import uvicorn
+from config import EchoCattackleSettings
 from dotenv import load_dotenv
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
@@ -21,16 +21,8 @@ load_dotenv()
 
 logger = logging.getLogger("echo-cattackle")
 
-# Configure Gemini API
-gemini_api_key = os.environ.get("GEMINI_API_KEY")
-gemini_model = os.environ.get("GEMINI_MODEL")
-if gemini_api_key and gemini_model:
-    genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel(gemini_model)
-    logger.info("Gemini API configured successfully")
-else:
-    model = None
-    logger.warning("GEMINI_API_KEY not found in environment variables. Joke command will not work.")
+# Global model variable - will be initialized in main()
+model = None
 
 
 # Tool functions for backward compatibility with tests
@@ -130,11 +122,7 @@ async def joke(text: str, accumulated_params: list = None) -> str:
             }
         )
 
-    # Then check if API is available
-    if not model:
-        return json.dumps(
-            {"data": "", "error": "Joke feature is not available. Please configure GEMINI_API_KEY in .env file."}
-        )
+    # Model is guaranteed to be available since it's required
 
     try:
         # Create a prompt for generating a short, funny anekdot
@@ -200,11 +188,11 @@ def joke_tool(text: str, accumulated_params: list) -> str:
 
 
 @click.command()
-@click.option("--port", default=8001, help="Port to listen on for HTTP")
+@click.option("--port", default=8001, help="Port to listen on for HTTP (overrides MCP_SERVER_PORT env var)")
 @click.option(
     "--log-level",
     default="INFO",
-    help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    help="Logging level (overrides LOG_LEVEL env var)",
 )
 @click.option(
     "--json-response",
@@ -217,13 +205,31 @@ def main(
     log_level: str,
     json_response: bool,
 ) -> int:
-    # Configure logging based on environment variable
-    log_level_env = os.environ.get("LOG_LEVEL", log_level)
-    logging.basicConfig(
-        level=getattr(logging, log_level_env.upper()),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        force=True,
-    )
+
+    # Load settings from environment
+    settings = EchoCattackleSettings.from_environment()
+
+    # Override with command line arguments if provided
+    if port is not None:
+        settings.mcp_server_port = port
+    if log_level is not None:
+        settings.log_level = log_level.upper()
+
+    # Configure logging
+    settings.configure_logging()
+
+    # Validate environment and log configuration status
+    settings.validate_environment()
+
+    # Configure Gemini API (required)
+    global model
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel(settings.gemini_model)
+        logger.info(f"Gemini API configured successfully with model: {settings.gemini_model}")
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini API: {e}")
+        raise RuntimeError(f"Failed to configure required Gemini API: {e}") from e
 
     # Create MCP server
     app = Server("echo-cattackle")
@@ -337,7 +343,7 @@ def main(
         lifespan=lifespan,
     )
 
-    uvicorn.run(starlette_app, host="127.0.0.1", port=port)
+    uvicorn.run(starlette_app, host="0.0.0.0", port=settings.mcp_server_port)
     return 0
 
 

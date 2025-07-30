@@ -9,7 +9,7 @@ class TestSettings:
 
     def test_default_accumulator_settings(self):
         """Test that accumulator settings have correct default values."""
-        settings = Settings(telegram_bot_token="dummy_token")
+        settings = Settings()
 
         assert settings.max_messages_per_chat == 100
         assert settings.max_message_length == 1000

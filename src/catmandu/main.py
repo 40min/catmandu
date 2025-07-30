@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     # Startup
     log.info("Starting Catmandu Core")
     settings = Settings()  # type: ignore
+    settings.validate_environment()
 
     # Initialize clients
     telegram_client = TelegramClient(token=settings.telegram_bot_token)
@@ -78,7 +79,10 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    configure_logging()
+    # Load settings early to get log level
+    settings = Settings()
+    configure_logging(settings.log_level)
+
     app = FastAPI(
         title="Catmandu Core",
         description="The core service for the Catmandu modular Telegram bot.",

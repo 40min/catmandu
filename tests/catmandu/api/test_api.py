@@ -1,3 +1,6 @@
+import os
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
 
@@ -15,7 +18,8 @@ def test_registry_empty(fs, app_test):
     if fs.exists("/nonexistent"):
         fs.remove_object("/nonexistent")
 
-    test_settings = Settings(cattackles_dir="/nonexistent")
+    with patch.dict(os.environ, {"CATTACKLES_DIR": "/nonexistent"}):
+        test_settings = Settings()
     test_registry = CattackleRegistry(config=test_settings)
     test_registry.scan()
 
@@ -34,7 +38,8 @@ def test_registry_empty(fs, app_test):
 @pytest.fixture
 def test_registry_with_cattackles(valid_cattackle_toml_file, app_test):
     """Create a test registry with cattackles present and set up dependency override."""
-    test_settings = Settings(cattackles_dir="/cattackles")
+    with patch.dict(os.environ, {"CATTACKLES_DIR": "/cattackles"}):
+        test_settings = Settings()
     test_registry = CattackleRegistry(config=test_settings)
     test_registry.scan()
 

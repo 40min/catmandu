@@ -1,4 +1,6 @@
 import logging
+import os
+from unittest.mock import patch
 
 import pytest
 import structlog
@@ -113,6 +115,19 @@ def test_registry_with_cattackles(valid_cattackle_toml_file):
     registry = CattackleRegistry(config=settings)
     registry.scan()
     return registry
+
+
+@pytest.fixture(autouse=True)
+def setup_test_environment():
+    """Set up required environment variables for all tests."""
+    test_env = {
+        "TELEGRAM_BOT_TOKEN": "test_bot_token_123",
+        "GEMINI_API_KEY": "test_gemini_api_key",
+        "GEMINI_MODEL": "gemini-2.5-flash-lite-preview-06-17",
+    }
+
+    with patch.dict(os.environ, test_env, clear=False):
+        yield
 
 
 @pytest.fixture(autouse=True)
