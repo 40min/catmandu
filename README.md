@@ -59,13 +59,36 @@ graph TD
 
 _Diagram: Flow of a user command through the Catmandu polling system._
 
-For more detailed information, please refer to the documents in the `architecture/` directory.
+## Documentation
+
+### Quick Start
+
+- **[Getting Started](#getting-started)** - Quick setup and installation guide
+- **[Docker Deployment](docs/docker.md)** - Complete Docker setup and deployment guide
+
+### Architecture & Design
+
+- **[Architecture Overview](architecture/start.md)** - Implementation plan and system overview
+- **[Core Architecture](architecture/ARCH-core-layered-architecture.md)** - Layered architecture design
+- **[Cattackle Specification](architecture/spec/ARCH-cattackle-spec-v1.md)** - Module development specification
+- **[Recommended Structure](architecture/recommended-structure.md)** - Project organization guidelines
+
+### Components
+
+- **[Core Components](architecture/core/)** - Detailed component specifications
+- **[Echo Cattackle](cattackles/echo/README.md)** - Example cattackle with full documentation
+
+### Operations
+
+- **[Chat Logging](docs/chat-logging.md)** - Chat interaction logging system
+
+> **Note**: All documentation is organized in the `docs/` and `architecture/` directories. Each cattackle also includes its own README with specific setup and usage instructions.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.12
+- Python 3.13
 - [uv](https://github.com/astral-sh/uv) package manager
 
 ### Installation
@@ -81,39 +104,56 @@ For more detailed information, please refer to the documents in the `architectur
 
 ## Usage
 
-1.  **Set up environment variables:**
+### Running on Host Machine
 
-    Create a `.env` file in the root directory and add your Telegram bot token:
+1. **Set up environment variables:**
 
-    ```
-    TELEGRAM_BOT_TOKEN=your_bot_token
-    ```
+   Create a `.env` file in the root directory and add your Telegram bot token:
 
-    Optional configuration for message accumulation:
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your TELEGRAM_BOT_TOKEN
+   ```
 
-    ```
-    # Maximum number of messages to store per chat (default: 100)
-    MAX_MESSAGES_PER_CHAT=100
+   Optional configuration for message accumulation:
 
-    # Maximum length of individual messages (default: 1000)
-    MAX_MESSAGE_LENGTH=1000
-    ```
+   ```
+   # Maximum number of messages to store per chat (default: 100)
+   MAX_MESSAGES_PER_CHAT=100
 
-2.  **Run the main application:**
-    ```sh
-    uvicorn catmandu.main:app --reload
-    ```
-3.  **Run a cattackle:**
+   # Maximum length of individual messages (default: 1000)
+   MAX_MESSAGE_LENGTH=1000
+   ```
 
-    Each cattackle is a separate process. To run the example "echo" cattackle:
+2. **Run the main application:**
 
-    ```sh
-    cd cattackles/echo
-    # Install its dependencies
-    uv pip install -r requirements.txt
-    # Run the cattackle server
-    python src/server.py
-    ```
+   ```bash
+   uvicorn catmandu.main:app --reload
+   ```
+
+3. **Run a cattackle:**
+
+   Each cattackle is a separate process. To run the example "echo" cattackle:
+
+   ```bash
+   cd cattackles/echo
+   # Install its dependencies
+   uv pip install -r requirements.txt
+   # Run the cattackle server
+   python src/server.py
+   ```
+
+### Running with Docker
+
+For a complete containerized setup, see the [Docker deployment guide](docs/docker.md).
+
+Quick start:
+
+```bash
+cp .env.example .env
+# Edit .env with your tokens
+make docker-up
+```
 
 ## Cattackles (Modules)
 
@@ -135,6 +175,10 @@ transport = "stdio" # "stdio", "websocket", or "http"
 ```
 
 For more details, see the [Cattackle Specification](architecture/spec/ARCH-cattackle-spec-v1.md).
+
+### Available Cattackles
+
+- **[Echo Cattackle](cattackles/echo/README.md)** - Demonstration cattackle with echo, ping, and AI joke features
 
 ## API Endpoints
 
