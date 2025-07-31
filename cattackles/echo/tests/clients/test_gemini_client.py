@@ -6,8 +6,7 @@ These tests focus on the Gemini API client functionality.
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from cattackles.echo.src.clients.gemini_client import GeminiClient
+from echo.clients.gemini_client import GeminiClient
 
 
 class TestGeminiClient:

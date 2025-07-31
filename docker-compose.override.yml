@@ -1,28 +1,57 @@
 # Development overrides for Docker Compose
 # This file is automatically loaded by docker-compose and provides
-# development-specific configurations
+# development-specific configurations like volume mounts and debug settings
 
 services:
   catmandu-core:
-    environment:
-      # Development logging
-      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+    build:
+      target: development # Use development stage with dev dependencies
     volumes:
-      # Mount source code for development
+      # Mount source code for live reloading during development
       - ./src:/app/src:ro
-      # Mount logs for easier access (bind mount for development)
-      - ./logs:/app/logs
-      # Keep the update data volume
-      - update_data:/app/.data
-    # Override restart policy for development
-    restart: "no"
+      - ./cattackles:/app/cattackles:ro
+      # Persist development data
+      - dev_update_data:/app/.data
+      - dev_chat_logs:/app/logs
+    environment:
+      # Enhanced logging for development
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      # Enable uvicorn auto-reload
+      - UVICORN_RELOAD=true
+    healthcheck:
+      # More frequent health checks in development
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   echo-cattackle:
-    environment:
-      # Development logging
-      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
     volumes:
-      # Mount source code for development
+      # Mount source code for live reloading during development
       - ./cattackles/echo/src:/app/src:ro
-    # Override restart policy for development
-    restart: "no"
+    environment:
+      # Enhanced logging for development
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+    healthcheck:
+      # More frequent health checks in development
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  # Development-specific volumes
+  dev_update_data:
+    name: catmandu-dev-update-data
+  dev_chat_logs:
+    name: catmandu-dev-chat-logs

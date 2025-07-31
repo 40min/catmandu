@@ -1,8 +1,8 @@
 from typing import Optional
 
-from cattackles.echo.src.clients.gemini_client import GeminiClient
-from cattackles.echo.src.config import EchoCattackleSettings
-from cattackles.echo.src.core.cattackle import EchoCattackle
+from echo.clients.gemini_client import GeminiClient
+from echo.config import EchoCattackleSettings
+from echo.core.cattackle import EchoCattackle
 
 
 def create_gemini_client(settings: EchoCattackleSettings) -> Optional[GeminiClient]:

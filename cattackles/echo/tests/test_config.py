@@ -7,9 +7,8 @@ import os
 from unittest.mock import patch
 
 import pytest
+from echo.config import EchoCattackleSettings
 from pydantic import ValidationError
-
-from cattackles.echo.src.config import EchoCattackleSettings
 
 
 class TestEchoCattackleSettings:

@@ -1,6 +1,5 @@
 import mcp.types as types
-
-from cattackles.echo.src.core.cattackle import EchoCattackle
+from echo.core.cattackle import EchoCattackle
 
 
 async def handle_tool_call(cattackle: EchoCattackle, name: str, arguments: dict) -> list[types.ContentBlock]:

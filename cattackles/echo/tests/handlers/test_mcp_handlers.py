@@ -7,9 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import mcp.types as types
 import pytest
-
-from cattackles.echo.src.core.cattackle import EchoCattackle
-from cattackles.echo.src.handlers.mcp_handlers import handle_tool_call
+from echo.core.cattackle import EchoCattackle
+from echo.handlers.mcp_handlers import handle_tool_call
 
 
 class TestMCPHandlers:

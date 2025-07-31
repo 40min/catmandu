@@ -2,7 +2,7 @@ import json
 import logging
 from typing import List, Optional
 
-from cattackles.echo.src.clients.gemini_client import GeminiClient
+from echo.clients.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 

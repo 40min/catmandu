@@ -7,8 +7,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies including curl for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
@@ -49,9 +50,9 @@ ENV LOG_LEVEL=INFO \
 # Expose the MCP server port
 EXPOSE ${MCP_SERVER_PORT}
 
-# Health check endpoint (the server doesn't have a dedicated health endpoint, so we check the MCP endpoint)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:${MCP_SERVER_PORT}/mcp', timeout=5)" || exit 1
+# Health check using dedicated health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:${MCP_SERVER_PORT}/health || exit 1
 
 # Use exec form for proper signal handling and environment variable substitution
 CMD python src/server.py --port ${MCP_SERVER_PORT} --log-level ${LOG_LEVEL}

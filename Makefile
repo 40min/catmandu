@@ -11,7 +11,7 @@ test-core:
 
 test-echo:
 	@echo "=== Running Echo Cattackle Tests ==="
-	cd cattackles/echo && PYTHONPATH=../../ uv run pytest
+	cd cattackles/echo && PYTHONPATH=../../:src uv run pytest
 
 # Show all available commands
 help:

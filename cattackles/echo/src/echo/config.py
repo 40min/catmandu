@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -72,10 +73,12 @@ class EchoCattackleSettings(BaseModel):
 
     def configure_logging(self) -> None:
         """Configure logging based on the log level setting."""
+
         numeric_level = getattr(logging, self.log_level.upper(), logging.INFO)
 
         logging.basicConfig(
             level=numeric_level,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            stream=sys.stdout,  # Ensure logs go to stdout for Docker logging drivers
             force=True,  # Override any existing configuration
         )

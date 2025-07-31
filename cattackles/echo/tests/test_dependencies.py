@@ -5,9 +5,9 @@ These tests focus on the factory functions for creating dependencies.
 
 from unittest.mock import patch
 
-from cattackles.echo.src.clients.gemini_client import GeminiClient
-from cattackles.echo.src.core.cattackle import EchoCattackle
-from cattackles.echo.src.dependencies import create_echo_cattackle, create_gemini_client
+from echo.clients.gemini_client import GeminiClient
+from echo.core.cattackle import EchoCattackle
+from echo.dependencies import create_echo_cattackle, create_gemini_client
 
 
 class TestDependencies:
@@ -15,7 +15,7 @@ class TestDependencies:
 
     def test_create_gemini_client_with_api_key(self, settings_with_gemini):
         """Test creating Gemini client when API key is available."""
-        with patch("cattackles.echo.src.dependencies.GeminiClient") as mock_client_class:
+        with patch("echo.dependencies.GeminiClient") as mock_client_class:
             mock_client = mock_client_class.return_value
 
             result = create_gemini_client(settings_with_gemini)
@@ -32,8 +32,8 @@ class TestDependencies:
     def test_create_echo_cattackle_with_gemini(self, settings_with_gemini):
         """Test creating EchoCattackle with Gemini client."""
         with (
-            patch("cattackles.echo.src.dependencies.GeminiClient") as mock_client_class,
-            patch("cattackles.echo.src.dependencies.EchoCattackle") as mock_cattackle_class,
+            patch("echo.dependencies.GeminiClient") as mock_client_class,
+            patch("echo.dependencies.EchoCattackle") as mock_cattackle_class,
         ):
 
             mock_client = mock_client_class.return_value
@@ -47,7 +47,7 @@ class TestDependencies:
 
     def test_create_echo_cattackle_without_gemini(self, settings_without_gemini):
         """Test creating EchoCattackle without Gemini client."""
-        with patch("cattackles.echo.src.dependencies.EchoCattackle") as mock_cattackle_class:
+        with patch("echo.dependencies.EchoCattackle") as mock_cattackle_class:
             mock_cattackle = mock_cattackle_class.return_value
 
             result = create_echo_cattackle(settings_without_gemini)
