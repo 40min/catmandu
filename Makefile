@@ -28,6 +28,7 @@ help:
 	@echo "  make docker-dev      - Start development environment with live reloading"
 	@echo "  make docker-debug    - Start services in debug mode"
 	@echo "  make docker-up       - Quick start with Docker Compose"
+	@echo "  make docker-qnap     - Start with QNAP production configuration"
 	@echo "  make docker-down     - Quick stop Docker Compose services"
 	@echo "  make docker-logs     - View Docker Compose logs"
 	@echo ""
@@ -70,9 +71,17 @@ docker-up:
 	@echo "=== Starting services with Docker Compose ==="
 	docker-compose up -d
 
+docker-qnap:
+	@echo "=== Starting services with QNAP configuration ==="
+	docker-compose -f docker-compose.yml -f docker-compose.qnap.yaml up -d
+
 docker-down:
 	@echo "=== Stopping Docker Compose services ==="
 	docker-compose down
+
+docker-qnap-down:
+	@echo "=== Stopping QNAP Docker Compose services ==="
+	docker-compose -f docker-compose.yml -f docker-compose.qnap.yaml down
 
 docker-logs:
 	@echo "=== Viewing Docker Compose logs ==="
@@ -152,7 +161,9 @@ help-docker:
 	@echo "Basic Operations:"
 	@echo "  make docker-build       - Build Docker images"
 	@echo "  make docker-up          - Start services in detached mode"
+	@echo "  make docker-qnap        - Start services with QNAP production configuration"
 	@echo "  make docker-down        - Stop and remove containers"
+	@echo "  make docker-qnap-down   - Stop QNAP configuration containers"
 	@echo "  make docker-logs        - Follow logs from all services"
 	@echo "  make docker-restart     - Restart all services"
 	@echo "  make docker-ps          - Show services status"
