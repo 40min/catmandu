@@ -1,0 +1,40 @@
+# Docker Compose override for debugging
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up
+# This configuration provides enhanced debugging capabilities
+
+services:
+  catmandu-core:
+    build:
+      target: development
+    environment:
+      - LOG_LEVEL=DEBUG
+      - UVICORN_LOG_LEVEL=debug
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      # Enable Python debugger support
+      - PYTHONBREAKPOINT=pdb.set_trace
+    ports:
+      # Expose additional port for debugger attachment
+      - "5678:5678"
+    volumes:
+      # Mount source code for live reloading
+      - ./src:/app/src:ro
+      - ./cattackles:/app/cattackles:ro
+      # Mount additional debugging tools
+      - ./scripts:/app/scripts:ro
+    # Use default command but with enhanced environment
+
+  echo-cattackle:
+    build:
+      target: development
+    environment:
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    ports:
+      # Expose MCP port for external debugging
+      - "8001:8001"
+    volumes:
+      # Mount source code for live reloading
+      - ./cattackles/echo/src:/app/src:ro
+    # Use default command but with enhanced environment

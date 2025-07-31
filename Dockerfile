@@ -54,6 +54,9 @@ RUN --mount=type=cache,target=/tmp/uv-cache \
 COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
 
+# Create necessary directories with proper permissions
+RUN mkdir -p logs/chats .data && chown -R catmandu:catmandu logs .data
+
 # Switch to non-root user
 USER catmandu
 
@@ -78,6 +81,9 @@ COPY --from=deps /app/.venv /app/.venv
 # Copy only necessary source code files
 COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
+
+# Create necessary directories with proper permissions
+RUN mkdir -p logs/chats .data && chown -R catmandu:catmandu logs .data
 
 # Switch to non-root user
 USER catmandu

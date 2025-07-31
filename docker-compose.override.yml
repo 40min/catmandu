@@ -17,8 +17,6 @@ services:
       # Mount source code for live reloading
       - ./src:/app/src:ro
       - ./cattackles:/app/cattackles:ro
-      # Cache volumes for better performance
-      - catmandu-uv-cache:/tmp/uv-cache
     environment:
       - LOG_LEVEL=DEBUG
       - UVICORN_LOG_LEVEL=debug
@@ -36,17 +34,10 @@ services:
     volumes:
       # Mount source code for live reloading
       - ./cattackles/echo/src:/app/src:ro
-      # Cache volumes for better performance
-      - echo-uv-cache:/tmp/uv-cache
     environment:
       - LOG_LEVEL=DEBUG
     # Enable BuildKit for advanced caching features
     x-build-args:
       BUILDKIT_INLINE_CACHE: 1
-
-# Named volumes for caching
-volumes:
-  catmandu-uv-cache:
-    driver: local
-  echo-uv-cache:
-    driver: local
+# Note: UV cache volumes removed to avoid permission issues in development
+# Build-time caching is handled by Docker BuildKit instead
