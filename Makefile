@@ -1,10 +1,17 @@
-.PHONY: run test analyze-chats analyze-chats-json analyze-participants analyze-commands docker-build docker-up docker-down docker-logs docker-restart docker-test docker-clean docker-ps docker-exec-core docker-exec-echo help help-docker
+.PHONY: run test test-core test-echo analyze-chats analyze-chats-json analyze-participants analyze-commands docker-build docker-up docker-down docker-logs docker-restart docker-test docker-clean docker-ps docker-exec-core docker-exec-echo help help-docker
 
 run:
 	uv run uvicorn catmandu.main:create_app --reload --app-dir src --port 8187
 
-test:
+test: test-core test-echo
+
+test-core:
+	@echo "=== Running Core Tests ==="
 	uv run pytest
+
+test-echo:
+	@echo "=== Running Echo Cattackle Tests ==="
+	cd cattackles/echo && PYTHONPATH=../../ uv run pytest
 
 # Show all available commands
 help:
@@ -12,7 +19,9 @@ help:
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make run             - Run the application locally with uvicorn"
-	@echo "  make test            - Run tests with pytest"
+	@echo "  make test            - Run all tests (core + cattackles)"
+	@echo "  make test-core       - Run core application tests only"
+	@echo "  make test-echo       - Run echo cattackle tests only"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make help-docker     - Show detailed Docker Compose commands"

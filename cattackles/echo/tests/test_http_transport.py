@@ -4,6 +4,7 @@ These tests verify that the HTTP MCP server works correctly.
 """
 
 import json
+import os
 import subprocess
 import time
 from typing import Any, Dict
@@ -18,24 +19,28 @@ class TestHttpTransport:
     @pytest.fixture(scope="class")
     def http_server(self):
         """Start the HTTP MCP server for testing (shared across all tests)."""
-        import os
 
-        # Determine the correct working directory and script path
+        # Add the cattackle src directory to Python path for the subprocess
+        cattackle_src_path = os.path.join(os.path.dirname(__file__), "..", "src")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = cattackle_src_path + ":" + env.get("PYTHONPATH", "")
+
+        # Set required environment variables
+        env["GEMINI_API_KEY"] = "test-key"
+        env["GEMINI_MODEL"] = "gemini-pro"
+
+        # Determine the correct script path
         current_dir = os.getcwd()
         if current_dir.endswith("cattackles/echo"):
-            # Running from cattackles/echo directory
             script_path = "src/server.py"
-            cwd = None
         else:
-            # Running from root directory
             script_path = "cattackles/echo/src/server.py"
-            cwd = None
 
         proc = subprocess.Popen(
             ["python", script_path, "--port", "8001", "--log-level", "ERROR"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=cwd,
+            env=env,
         )
 
         try:
@@ -168,6 +173,15 @@ class TestHttpTransport:
         """Test the server with JSON response mode instead of SSE."""
         import os
 
+        # Add the cattackle src directory to Python path for the subprocess
+        cattackle_src_path = os.path.join(os.path.dirname(__file__), "..", "src")
+        env = os.environ.copy()
+        env["PYTHONPATH"] = cattackle_src_path + ":" + env.get("PYTHONPATH", "")
+
+        # Set required environment variables
+        env["GEMINI_API_KEY"] = "test-key"
+        env["GEMINI_MODEL"] = "gemini-pro"
+
         # Determine the correct script path
         current_dir = os.getcwd()
         if current_dir.endswith("cattackles/echo"):
@@ -179,6 +193,7 @@ class TestHttpTransport:
             ["python", script_path, "--port", "8002", "--json-response", "--log-level", "ERROR"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
         )
 
         try:
