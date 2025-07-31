@@ -1,57 +1,52 @@
-# Development overrides for Docker Compose
-# This file is automatically loaded by docker-compose and provides
-# development-specific configurations like volume mounts and debug settings
+# Docker Compose override for development
+# This file provides development-specific configurations including:
+# - Volume mounts for live code reloading
+# - Development build targets
+# - Enhanced logging and debugging
+# - Build cache optimization
 
 services:
   catmandu-core:
     build:
-      target: development # Use development stage with dev dependencies
+      target: development
+      cache_from:
+        - catmandu-core:latest
+        - catmandu-core:deps
+        - catmandu-core:base
     volumes:
-      # Mount source code for live reloading during development
+      # Mount source code for live reloading
       - ./src:/app/src:ro
       - ./cattackles:/app/cattackles:ro
-      # Persist development data
-      - dev_update_data:/app/.data
-      - dev_chat_logs:/app/logs
+      # Cache volumes for better performance
+      - catmandu-uv-cache:/tmp/uv-cache
     environment:
-      # Enhanced logging for development
-      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
-      # Enable uvicorn auto-reload
-      - UVICORN_RELOAD=true
-    healthcheck:
-      # More frequent health checks in development
-      interval: 15s
-      timeout: 5s
-      retries: 2
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
+      - LOG_LEVEL=DEBUG
+      - UVICORN_LOG_LEVEL=debug
+    # Enable BuildKit for advanced caching features
+    x-build-args:
+      BUILDKIT_INLINE_CACHE: 1
 
   echo-cattackle:
+    build:
+      target: development
+      cache_from:
+        - echo-cattackle:latest
+        - echo-cattackle:deps
+        - echo-cattackle:base
     volumes:
-      # Mount source code for live reloading during development
+      # Mount source code for live reloading
       - ./cattackles/echo/src:/app/src:ro
+      # Cache volumes for better performance
+      - echo-uv-cache:/tmp/uv-cache
     environment:
-      # Enhanced logging for development
-      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
-    healthcheck:
-      # More frequent health checks in development
-      interval: 15s
-      timeout: 5s
-      retries: 2
-      start_period: 15s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
+      - LOG_LEVEL=DEBUG
+    # Enable BuildKit for advanced caching features
+    x-build-args:
+      BUILDKIT_INLINE_CACHE: 1
 
+# Named volumes for caching
 volumes:
-  # Development-specific volumes
-  dev_update_data:
-    name: catmandu-dev-update-data
-  dev_chat_logs:
-    name: catmandu-dev-chat-logs
+  catmandu-uv-cache:
+    driver: local
+  echo-uv-cache:
+    driver: local

@@ -54,10 +54,17 @@ Thumbs.db
 README.md
 *.md
 
-# Tests
+# Tests and development files
 tests/
 *_test.py
 test_*.py
+**/*test*.py
+pytest.ini
+.pytest_cache/
+
+# Development configuration
+cattackle.example.toml
+requirements-test.txt
 
 # Logs
 *.log

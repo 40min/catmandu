@@ -1,16 +1,25 @@
-# Multi-stage build for echo cattackle
-FROM python:3.13-slim as base
+# Multi-stage build for echo cattackle - optimized for caching and size
+FROM python:3.13-slim AS base
 
-# Set environment variables
+# Set environment variables for optimization
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_CACHE_DIR=/tmp/uv-cache
 
-# Install system dependencies including curl for health checks
+# Install system dependencies in optimized layers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install uv in separate layer for better caching
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add uv to PATH
+ENV PATH="/root/.local/bin:$PATH"
 
 # Create non-root user for security
 RUN groupadd --gid 1000 cattackle && \
@@ -19,40 +28,63 @@ RUN groupadd --gid 1000 cattackle && \
 # Set working directory
 WORKDIR /app
 
-# Dependencies stage
-FROM base as deps
+# Dependencies stage with aggressive caching
+FROM base AS deps
 
-# Install uv for fast dependency management
-RUN pip install uv
-
-# Copy requirements and install dependencies
+# Copy only requirements file first for maximum cache reuse
 COPY requirements.txt .
-RUN uv pip install --system -r requirements.txt
 
-# Production stage
-FROM deps as production
+# Install dependencies with cache mount and optimized settings
+RUN --mount=type=cache,target=/tmp/uv-cache \
+    uv pip install --system -r requirements.txt --link-mode=copy
 
-# Copy application code
-COPY src/ ./src/
+# Development stage with dev tools
+FROM deps AS development
 
-# Change ownership to non-root user
-RUN chown -R cattackle:cattackle /app
+# Copy application code (will be overridden by volume mounts)
+COPY --chown=cattackle:cattackle src/ ./src/
 
 # Switch to non-root user
 USER cattackle
 
-# Configure environment variables with defaults
-ENV LOG_LEVEL=INFO \
+# Configure environment variables for development
+ENV LOG_LEVEL=DEBUG \
     MCP_SERVER_PORT=8001 \
     GEMINI_API_KEY="" \
     GEMINI_MODEL=""
 
 # Expose the MCP server port
-EXPOSE ${MCP_SERVER_PORT}
+EXPOSE 8001
 
-# Health check using dedicated health endpoint
+# Development command with debug logging
+CMD ["python", "src/server.py", "--port", "8001", "--log-level", "DEBUG"]
+
+# Production stage - minimal and optimized
+FROM base AS production
+
+# Copy only the installed packages from deps stage
+COPY --from=deps /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Copy application code with proper ownership
+COPY --chown=cattackle:cattackle src/ ./src/
+
+# Switch to non-root user
+USER cattackle
+
+# Configure environment variables with production defaults
+ENV LOG_LEVEL=INFO \
+    MCP_SERVER_PORT=8001 \
+    GEMINI_API_KEY="" \
+    GEMINI_MODEL="" \
+    PYTHONPATH=/app
+
+# Expose the MCP server port
+EXPOSE 8001
+
+# Optimized health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:${MCP_SERVER_PORT}/health || exit 1
+    CMD curl -f http://localhost:8001/health || exit 1
 
-# Use exec form for proper signal handling and environment variable substitution
-CMD python src/server.py --port ${MCP_SERVER_PORT} --log-level ${LOG_LEVEL}
+# Production command with optimized settings
+CMD ["python", "src/server.py", "--port", "8001", "--log-level", "INFO"]

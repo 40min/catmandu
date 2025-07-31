@@ -81,6 +81,19 @@ Makefile
 .pre-commit-config.yaml
 pytest.ini
 
+# Build optimization - exclude test files from production builds
+tests/
+**/tests/
+**/*_test.py
+**/test_*.py
+**/*test*.py
+
+# Exclude development-only files
+.python-version
+.pre-commit-config.yaml
+pyrightconfig.json
+poetry.toml
+
 # Docker files (avoid recursive copying)
 Dockerfile
 .dockerignore
