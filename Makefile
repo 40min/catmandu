@@ -73,7 +73,7 @@ docker-up:
 
 docker-qnap:
 	@echo "=== Starting services with QNAP configuration ==="
-	docker compose -f docker-compose.yml -f docker compose.qnap.yaml up -d
+	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml up -d
 
 docker-down:
 	@echo "=== Stopping Docker Compose services ==="
@@ -81,7 +81,7 @@ docker-down:
 
 docker-qnap-down:
 	@echo "=== Stopping QNAP Docker Compose services ==="
-	docker compose -f docker-compose.yml -f docker compose.qnap.yaml down
+	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml down
 
 docker-logs:
 	@echo "=== Viewing Docker Compose logs ==="
