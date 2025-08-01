@@ -1,5 +1,6 @@
 import structlog
 
+from catmandu.core.audio_processor import AudioProcessingError, AudioProcessor
 from catmandu.core.errors import CattackleExecutionError
 from catmandu.core.infrastructure.chat_logger import ChatLogger
 from catmandu.core.infrastructure.mcp_manager import McpService
@@ -14,15 +15,17 @@ class MessageRouter:
         cattackle_registry: CattackleRegistry,
         accumulator_manager: AccumulatorManager,
         chat_logger: ChatLogger,
+        audio_processor: AudioProcessor = None,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
         self._mcp_service = mcp_service
         self._registry = cattackle_registry
         self._accumulator_manager = accumulator_manager
         self._chat_logger = chat_logger
+        self._audio_processor = audio_processor
 
     async def process_update(self, update: dict) -> tuple[int, str] | None:
-        """Process a Telegram update, handling both command and non-command messages.
+        """Process a Telegram update, handling text, command, and audio messages.
 
         Args:
             update: Telegram update dictionary
@@ -30,27 +33,37 @@ class MessageRouter:
         Returns:
             Tuple of (chat_id, response_text) if a response should be sent, None otherwise
         """
-        if "message" not in update or "text" not in update["message"]:
-            self.log.warning("Update does not contain a message or text", update=update)
+        if "message" not in update:
+            self.log.warning("Update does not contain a message", update=update)
             return None
 
         message = update["message"]
         chat_id = message["chat"]["id"]
+
+        # Handle audio messages (voice, audio, video_note)
+        if any(key in message for key in ["voice", "audio", "video_note"]):
+            return await self._process_audio_message(chat_id, message)
+
+        # Handle text messages
+        if "text" not in message:
+            self.log.warning("Update does not contain text or audio", update=update)
+            return None
+
         text = message["text"]
         user_info = message.get("from", {})
 
         if text.startswith("/"):
-            return await self._process_command(chat_id, text, message)
+            return await self._process_command(chat_id, text, user_info)
         else:
             return await self._process_non_command_message(chat_id, text, user_info)
 
-    async def _process_command(self, chat_id: int, text: str, message: dict) -> tuple[int, str]:
+    async def _process_command(self, chat_id: int, text: str, user_info: dict) -> tuple[int, str]:
         """Process command message with accumulated parameters or handle system commands.
 
         Args:
             chat_id: Telegram chat ID
             text: Command text starting with /
-            message: Full Telegram message object
+            user_info: User information from Telegram message
 
         Returns:
             Tuple of (chat_id, response_text)
@@ -58,7 +71,6 @@ class MessageRouter:
         parts = text.split(" ", 1)
         full_command = parts[0][1:]  # Remove the '/' prefix
         payload_str = parts[1] if len(parts) > 1 else ""
-        user_info = message.get("from", {})
 
         # Handle system commands first
         if full_command in ["clear_accumulator", "show_accumulator", "accumulator_status"]:
@@ -208,3 +220,129 @@ class MessageRouter:
             response = f"Unknown system command: {command}"
 
         return chat_id, response
+
+    async def _process_audio_message(self, chat_id: int, message: dict) -> tuple[int, str]:
+        """Process audio message and convert to text for routing.
+
+        Args:
+            chat_id: Telegram chat ID
+            message: Telegram message containing audio data
+
+        Returns:
+            Tuple of (chat_id, response_text)
+        """
+        user_info = message.get("from", {})
+
+        # Check if audio processing is available
+        if not self._audio_processor:
+            self.log.warning("Audio message received but audio processor not available", chat_id=chat_id)
+            response_text = "Sorry, audio processing is not available at the moment."
+
+            # Log the audio message attempt
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="audio",
+                text="[Audio message - processing unavailable]",
+                user_info=user_info,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text
+
+        try:
+            self.log.info("Processing audio message", chat_id=chat_id)
+
+            # Send typing indicator to show processing is in progress
+            await self._audio_processor.telegram_client.send_chat_action(chat_id, "typing")
+
+            # Process the audio message to get transcribed text
+            update = {"message": message}
+            transcribed_text = await self._audio_processor.process_audio_message(update)
+
+            if not transcribed_text:
+                response_text = "Sorry, I couldn't process the audio message. Please try again or send a text message."
+
+                # Log failed audio processing
+                self._chat_logger.log_message(
+                    chat_id=chat_id,
+                    message_type="audio",
+                    text="[Audio message - processing failed]",
+                    user_info=user_info,
+                    response_length=len(response_text),
+                )
+
+                return chat_id, response_text
+
+            self.log.info("Audio transcription successful", chat_id=chat_id, text_length=len(transcribed_text))
+
+            # Process the transcribed text as if it were a regular text message
+            if transcribed_text.startswith("/"):
+                return await self._process_command(chat_id, transcribed_text, user_info)
+            else:
+                # Process as non-command message for accumulation
+                result = await self._process_non_command_message(chat_id, transcribed_text, user_info)
+
+                # If no feedback from accumulator, provide confirmation
+                if result is None:
+                    response_text = f'I heard: "{transcribed_text}"'
+
+                    # Log the successful audio processing
+                    self._chat_logger.log_message(
+                        chat_id=chat_id,
+                        message_type="audio",
+                        text=f"[Audio transcribed]: {transcribed_text}",
+                        user_info=user_info,
+                        response_length=len(response_text),
+                    )
+
+                    return chat_id, response_text
+
+                return result
+
+        except AudioProcessingError as e:
+            self.log.error("Audio processing failed", chat_id=chat_id, error=str(e))
+
+            # Provide user-friendly error messages based on error type
+            error_message = str(e)
+            if "too large" in error_message.lower():
+                response_text = "Sorry, the audio file is too large. Please send files smaller than the allowed limit."
+            elif "too long" in error_message.lower():
+                response_text = "Sorry, the audio file is too long. Please send shorter audio messages."
+            elif "unsupported" in error_message.lower():
+                response_text = (
+                    "Sorry, I can't process this audio format. Please send voice messages or common audio files."
+                )
+            elif "disabled" in error_message.lower():
+                response_text = "Sorry, audio processing is currently disabled."
+            elif "api key" in error_message.lower():
+                response_text = "Sorry, audio processing is not properly configured. Please contact the administrator."
+            else:
+                response_text = (
+                    "Sorry, I couldn't process the audio message. Please try again later or send a text message."
+                )
+
+            # Log the audio processing error
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="audio",
+                text=f"[Audio processing error]: {error_message}",
+                user_info=user_info,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text
+
+        except Exception as e:
+            self.log.error("Unexpected error processing audio message", chat_id=chat_id, error=str(e))
+            response_text = "Sorry, an unexpected error occurred while processing your audio message. Please try again."
+
+            # Log the unexpected error
+            self._chat_logger.log_message(
+                chat_id=chat_id,
+                message_type="audio",
+                text=f"[Audio processing unexpected error]: {str(e)}",
+                user_info=user_info,
+                response_length=len(response_text),
+            )
+
+            return chat_id, response_text

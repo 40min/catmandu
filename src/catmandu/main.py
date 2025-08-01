@@ -5,9 +5,11 @@ import structlog
 from fastapi import FastAPI
 
 from catmandu.api import admin, cattackles, health
+from catmandu.core.audio_processor import AudioProcessor
 from catmandu.core.clients.mcp import McpClient
 from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
+from catmandu.core.cost_tracker import CostTracker
 from catmandu.core.infrastructure.chat_logger import ChatLogger
 from catmandu.core.infrastructure.mcp_manager import McpService
 from catmandu.core.infrastructure.poller import TelegramPoller
@@ -45,12 +47,27 @@ async def lifespan(app: FastAPI):
     # Initialize chat logger
     chat_logger = ChatLogger(logs_dir=settings.chat_logs_dir)
 
-    # Initialize router with accumulator manager and chat logger dependencies
+    # Initialize audio processing components if enabled
+    audio_processor = None
+    cost_tracker = None
+    if settings.audio_processing_enabled:
+        log.info("Audio processing is enabled, initializing audio processor")
+        cost_tracker = CostTracker(settings=settings)
+        audio_processor = AudioProcessor(
+            settings=settings,
+            telegram_client=telegram_client,
+            cost_tracker=cost_tracker,
+        )
+    else:
+        log.info("Audio processing is disabled")
+
+    # Initialize router with accumulator manager, chat logger, and optional audio processor
     message_router = MessageRouter(
         mcp_service=mcp_service,
         cattackle_registry=cattackle_registry,
         accumulator_manager=accumulator_manager,
         chat_logger=chat_logger,
+        audio_processor=audio_processor,
     )
     poller = TelegramPoller(router=message_router, telegram_client=telegram_client, settings=settings)
 
@@ -63,6 +80,8 @@ async def lifespan(app: FastAPI):
     app.state.message_router = message_router
     app.state.telegram_client = telegram_client
     app.state.poller = poller
+    app.state.audio_processor = audio_processor
+    app.state.cost_tracker = cost_tracker
 
     poller_task = asyncio.create_task(poller.run())
 
@@ -74,6 +93,9 @@ async def lifespan(app: FastAPI):
         await poller.stop()
         await poller_task
         await telegram_client.close()
+        # Clean up audio processor if it exists
+        if audio_processor:
+            await audio_processor.close()
         # Clean up all MCP client sessions
         await mcp_service.close_all_sessions()
 
