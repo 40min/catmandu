@@ -16,7 +16,7 @@ from echo.handlers.tools import get_tool_definitions
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from starlette.applications import Starlette
-from starlette.routing import Mount
+from starlette.routing import Mount, Route
 from starlette.types import Receive, Scope, Send
 
 # Load environment variables from .env file
@@ -85,7 +85,7 @@ def create_starlette_app(mcp_server: Server, json_response: bool = False) -> Sta
         debug=True,
         routes=[
             Mount("/mcp", app=handle_streamable_http),
-            Mount("/health", app=handle_health_check),
+            Route("/health", endpoint=handle_health_check, methods=["GET"]),
         ],
         lifespan=lifespan,
     )

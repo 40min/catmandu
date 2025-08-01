@@ -81,7 +81,10 @@ This is the recommended approach for development and testing individual cattackl
 
 3. **Configure environment variables:**
 
+   The echo cattackle uses environment variables from the root `.env` file. Make sure you have configured:
+
    ```bash
+   # In the project root directory
    cp .env.example .env
    # Edit .env and add your GEMINI_API_KEY
    ```
@@ -124,6 +127,8 @@ This approach runs both the core service and the echo cattackle in containers, w
    # Edit .env with your TELEGRAM_BOT_TOKEN and GEMINI_API_KEY
    ```
 
+   **Note:** All environment variables must be in the root `.env` file, not in cattackle-specific `.env` files, as Docker Compose only reads from the root directory.
+
 2. **Start all services:**
 
    ```bash
@@ -144,10 +149,14 @@ For more details on Docker deployment, see the [Docker documentation](../../docs
 
 ## Environment Variables
 
+All environment variables should be configured in the root `.env` file:
+
 - `GEMINI_API_KEY`: Your Google Gemini API key (required for joke functionality)
-- `GEMINI_MODEL`: Gemini model to use (default: gemini-1.5-flash)
+- `GEMINI_MODEL`: Gemini model to use (default: gemini-2.5-flash-lite-preview-06-17)
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `MCP_SERVER_PORT`: Port for the MCP server (default: 8001)
+
+**Important:** Docker Compose only reads environment variables from the root `.env` file, not from cattackle-specific `.env` files.
 
 ## Testing
 

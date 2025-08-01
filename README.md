@@ -108,11 +108,18 @@ _Diagram: Flow of a user command through the Catmandu polling system._
 
 1. **Set up environment variables:**
 
-   Create a `.env` file in the root directory and add your Telegram bot token:
+   Create a `.env` file in the root directory and add your configuration:
 
    ```bash
    cp .env.example .env
-   # Edit .env and add your TELEGRAM_BOT_TOKEN
+   # Edit .env and add your TELEGRAM_BOT_TOKEN and GEMINI_API_KEY
+   ```
+
+   Required configuration:
+
+   ```
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
    Optional configuration for message accumulation:
@@ -151,7 +158,7 @@ Quick start:
 
 ```bash
 cp .env.example .env
-# Edit .env with your tokens
+# Edit .env with your TELEGRAM_BOT_TOKEN and GEMINI_API_KEY
 make docker-up
 ```
 

@@ -65,94 +65,94 @@ analyze-chats-date:
 # Docker Compose commands
 docker-build:
 	@echo "=== Building Docker images ==="
-	docker-compose build
+	docker compose build
 
 docker-up:
 	@echo "=== Starting services with Docker Compose ==="
-	docker-compose up -d
+	docker compose up -d
 
 docker-qnap:
 	@echo "=== Starting services with QNAP configuration ==="
-	docker-compose -f docker-compose.yml -f docker-compose.qnap.yaml up -d
+	docker compose -f docker compose.yml -f docker compose.qnap.yaml up -d
 
 docker-down:
 	@echo "=== Stopping Docker Compose services ==="
-	docker-compose down
+	docker compose down
 
 docker-qnap-down:
 	@echo "=== Stopping QNAP Docker Compose services ==="
-	docker-compose -f docker-compose.yml -f docker-compose.qnap.yaml down
+	docker compose -f docker compose.yml -f docker compose.qnap.yaml down
 
 docker-logs:
 	@echo "=== Viewing Docker Compose logs ==="
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-restart:
 	@echo "=== Restarting Docker Compose services ==="
-	docker-compose restart
+	docker compose restart
 
 docker-test:
 	@echo "=== Testing Docker Compose configuration ==="
-	./test-docker-compose.sh
+	./test-docker compose.sh
 
 docker-clean:
 	@echo "=== Cleaning up Docker Compose (including volumes) ==="
-	docker-compose down -v
-	docker-compose build --no-cache
+	docker compose down -v
+	docker compose build --no-cache
 
 docker-ps:
 	@echo "=== Docker Compose services status ==="
-	docker-compose ps
+	docker compose ps
 
 docker-exec-core:
 	@echo "=== Opening shell in catmandu-core container ==="
-	docker-compose exec catmandu-core /bin/bash
+	docker compose exec catmandu-core /bin/bash
 
 docker-exec-echo:
 	@echo "=== Opening shell in echo-cattackle container ==="
-	docker-compose exec echo-cattackle /bin/bash
+	docker compose exec echo-cattackle /bin/bash
 
 # Development-specific Docker commands
 docker-dev:
 	@echo "=== Starting development environment with live reloading ==="
-	docker-compose up
+	docker compose up
 
 docker-dev-build:
 	@echo "=== Building development images with cache optimization ==="
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose build
+	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build
 
 docker-debug:
 	@echo "=== Starting services in debug mode ==="
-	docker-compose -f docker-compose.yml -f docker-compose.debug.yml up
+	docker compose -f docker compose.yml -f docker compose.debug.yml up
 
 docker-test-env:
 	@echo "=== Starting test environment ==="
-	docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
+	docker compose -f docker compose.yml -f docker compose.test.yml up -d
 
 docker-run-tests:
 	@echo "=== Running tests in containerized environment ==="
-	docker-compose -f docker-compose.yml -f docker-compose.test.yml --profile testing up test-runner
+	docker compose -f docker compose.yml -f docker compose.test.yml --profile testing up test-runner
 
 docker-logs-core:
 	@echo "=== Viewing core application logs ==="
-	docker-compose logs -f catmandu-core
+	docker compose logs -f catmandu-core
 
 docker-logs-echo:
 	@echo "=== Viewing echo cattackle logs ==="
-	docker-compose logs -f echo-cattackle
+	docker compose logs -f echo-cattackle
 
 docker-health:
 	@echo "=== Checking service health ==="
 	@echo "Core application health:"
 	@curl -f http://localhost:8000/health 2>/dev/null && echo " ✓ Core is healthy" || echo " ✗ Core is unhealthy"
 	@echo "Echo cattackle health (internal):"
-	@docker-compose exec catmandu-core curl -f http://echo-cattackle:8001/health 2>/dev/null && echo " ✓ Echo is healthy" || echo " ✗ Echo is unhealthy"
+	@docker compose exec catmandu-core curl -f http://echo-cattackle:8001/health 2>/dev/null && echo " ✓ Echo is healthy" || echo " ✗ Echo is unhealthy"
 
 docker-reset:
 	@echo "=== Resetting development environment ==="
-	docker-compose down -v
-	docker-compose build
-	docker-compose up -d
+	docker compose down -v
+	docker compose build
+	docker compose up -d
 
 # Show help for Docker commands
 help-docker:
