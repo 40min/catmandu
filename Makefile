@@ -73,7 +73,7 @@ docker-up:
 
 docker-qnap:
 	@echo "=== Starting services with QNAP configuration ==="
-	docker compose -f docker compose.yml -f docker compose.qnap.yaml up -d
+	docker compose -f docker-compose.yml -f docker compose.qnap.yaml up -d
 
 docker-down:
 	@echo "=== Stopping Docker Compose services ==="
@@ -81,7 +81,7 @@ docker-down:
 
 docker-qnap-down:
 	@echo "=== Stopping QNAP Docker Compose services ==="
-	docker compose -f docker compose.yml -f docker compose.qnap.yaml down
+	docker compose -f docker-compose.yml -f docker compose.qnap.yaml down
 
 docker-logs:
 	@echo "=== Viewing Docker Compose logs ==="
@@ -123,15 +123,15 @@ docker-dev-build:
 
 docker-debug:
 	@echo "=== Starting services in debug mode ==="
-	docker compose -f docker compose.yml -f docker compose.debug.yml up
+	docker compose -f docker-compose.yml -f docker compose.debug.yml up
 
 docker-test-env:
 	@echo "=== Starting test environment ==="
-	docker compose -f docker compose.yml -f docker compose.test.yml up -d
+	docker compose -f docker-compose.yml -f docker compose.test.yml up -d
 
 docker-run-tests:
 	@echo "=== Running tests in containerized environment ==="
-	docker compose -f docker compose.yml -f docker compose.test.yml --profile testing up test-runner
+	docker compose -f docker-compose.yml -f docker compose.test.yml --profile testing up test-runner
 
 docker-logs-core:
 	@echo "=== Viewing core application logs ==="
