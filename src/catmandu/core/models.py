@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -49,3 +50,38 @@ class CattackleRequest(BaseModel):
 class CattackleResponse(BaseModel):
     data: str
     error: Optional[str] = None
+
+
+class AudioFileInfo(BaseModel):
+    """Information about an audio file from Telegram."""
+
+    file_id: str
+    file_unique_id: str
+    duration: Optional[int] = None
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+
+
+class TranscriptionResult(BaseModel):
+    """Result of audio transcription processing."""
+
+    text: str
+    language: Optional[str] = None
+    confidence: Optional[float] = None
+    processing_time: float
+
+
+class CostLogEntry(BaseModel):
+    """Cost tracking entry for audio processing operations."""
+
+    timestamp: datetime
+    chat_id: int
+    user_info: Dict[str, Any]
+    audio_duration: float  # in minutes
+    whisper_cost: float  # in USD
+    gpt_tokens_input: int
+    gpt_tokens_output: int
+    gpt_cost: float  # in USD
+    total_cost: float  # in USD
+    file_size: int  # in bytes
+    processing_time: float  # in seconds

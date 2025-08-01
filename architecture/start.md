@@ -33,7 +33,7 @@ graph TD
         subgraph "Web Server"
             FastAPI_Server[FastAPI Server<br>/health, /cattackles]
         end
-        
+
         Telegram_Poller --> MessageRouter{Message Router}
         MessageRouter --> CattackleRegistry[Cattackle Registry<br>(In-Memory Cache)]
         MessageRouter --> MCP_Client_Manager[MCP Client Manager]
