@@ -1,3 +1,4 @@
+import time
 from typing import Dict, Optional
 
 import aiohttp
@@ -44,6 +45,7 @@ class OpenAIClient:
             ValueError: For invalid responses or parameters
         """
         session = await self._get_session()
+        request_start_time = time.time()
 
         # Prepare multipart form data
         data = aiohttp.FormData()
@@ -53,31 +55,99 @@ class OpenAIClient:
 
         url = f"{self.base_url}/audio/transcriptions"
 
-        try:
-            logger.info("Sending audio transcription request", filename=filename, size=len(audio_file))
+        # Enhanced request logging
+        logger.info(
+            "Sending Whisper API transcription request",
+            url=url,
+            filename=filename,
+            file_size_bytes=len(audio_file),
+            file_size_mb=round(len(audio_file) / (1024 * 1024), 2),
+            model="whisper-1",
+            response_format="verbose_json",
+            timeout_seconds=self.timeout,
+        )
 
+        try:
             async with session.post(url, data=data) as response:
+                request_time = time.time() - request_start_time
                 response_data = await response.json()
 
+                # Log response details
+                logger.info(
+                    "Whisper API response received",
+                    filename=filename,
+                    status_code=response.status,
+                    request_time_seconds=round(request_time, 2),
+                    response_size_bytes=len(str(response_data)),
+                    response_headers_content_type=response.headers.get("content-type"),
+                    response_headers_content_length=response.headers.get("content-length"),
+                )
+
                 if response.status != 200:
-                    error_msg = response_data.get("error", {}).get("message", "Unknown error")
-                    logger.error("Whisper API error", status=response.status, error=error_msg, filename=filename)
+                    error_info = response_data.get("error", {})
+                    error_msg = error_info.get("message", "Unknown error")
+                    error_type = error_info.get("type", "unknown")
+                    error_code = error_info.get("code", "unknown")
+
+                    logger.error(
+                        "Whisper API error response",
+                        filename=filename,
+                        status_code=response.status,
+                        error_message=error_msg,
+                        error_type=error_type,
+                        error_code=error_code,
+                        request_time_seconds=round(request_time, 2),
+                        full_error_response=error_info,
+                    )
                     raise ValueError(f"Whisper API error: {error_msg}")
 
+                # Enhanced success logging with API response details
                 logger.info(
-                    "Audio transcription completed",
+                    "Whisper API transcription completed successfully",
                     filename=filename,
-                    language=response_data.get("language"),
-                    duration=response_data.get("duration"),
+                    request_time_seconds=round(request_time, 2),
+                    detected_language=response_data.get("language"),
+                    audio_duration_seconds=response_data.get("duration"),
+                    text_length_chars=len(response_data.get("text", "")),
+                    text_length_words=len(response_data.get("text", "").split()),
+                    segments_count=len(response_data.get("segments", [])),
+                    processing_speed_ratio=(
+                        round(response_data.get("duration", 0) / request_time, 2)
+                        if request_time > 0 and response_data.get("duration")
+                        else None
+                    ),
+                    text_preview=(
+                        response_data.get("text", "")[:100] + "..."
+                        if len(response_data.get("text", "")) > 100
+                        else response_data.get("text", "")
+                    ),
                 )
 
                 return response_data
 
         except aiohttp.ClientError as e:
-            logger.error("HTTP error during transcription", error=str(e), filename=filename)
+            request_time = time.time() - request_start_time
+            logger.error(
+                "HTTP error during Whisper API transcription",
+                filename=filename,
+                url=url,
+                request_time_seconds=round(request_time, 2),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise
         except Exception as e:
-            logger.error("Unexpected error during transcription", error=str(e), filename=filename)
+            request_time = time.time() - request_start_time
+            logger.error(
+                "Unexpected error during Whisper API transcription",
+                filename=filename,
+                url=url,
+                request_time_seconds=round(request_time, 2),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise
 
     async def improve_text(self, text: str, prompt: str = None) -> Dict:
@@ -98,6 +168,7 @@ class OpenAIClient:
             raise ValueError("Text cannot be empty")
 
         session = await self._get_session()
+        request_start_time = time.time()
 
         # Default prompt for text improvement
         if prompt is None:
@@ -117,38 +188,105 @@ class OpenAIClient:
 
         url = f"{self.base_url}/chat/completions"
 
-        try:
-            logger.info("Sending text improvement request", text_length=len(text))
+        # Enhanced request logging
+        logger.info(
+            "Sending GPT-4o-mini text improvement request",
+            url=url,
+            model="gpt-4o-mini",
+            original_text_length=len(text),
+            original_word_count=len(text.split()),
+            system_prompt_length=len(prompt),
+            temperature=0.1,
+            max_tokens=2000,
+            timeout_seconds=self.timeout,
+            text_preview=text[:100] + "..." if len(text) > 100 else text,
+        )
 
+        try:
             async with session.post(url, json=payload) as response:
+                request_time = time.time() - request_start_time
                 response_data = await response.json()
 
+                # Log response details
+                logger.info(
+                    "GPT-4o-mini API response received",
+                    status_code=response.status,
+                    request_time_seconds=round(request_time, 2),
+                    response_size_bytes=len(str(response_data)),
+                    response_headers_content_type=response.headers.get("content-type"),
+                    response_headers_content_length=response.headers.get("content-length"),
+                )
+
                 if response.status != 200:
-                    error_msg = response_data.get("error", {}).get("message", "Unknown error")
+                    error_info = response_data.get("error", {})
+                    error_msg = error_info.get("message", "Unknown error")
+                    error_type = error_info.get("type", "unknown")
+                    error_code = error_info.get("code", "unknown")
+
                     logger.error(
-                        "GPT-4o-mini API error", status=response.status, error=error_msg, text_length=len(text)
+                        "GPT-4o-mini API error response",
+                        status_code=response.status,
+                        error_message=error_msg,
+                        error_type=error_type,
+                        error_code=error_code,
+                        request_time_seconds=round(request_time, 2),
+                        original_text_length=len(text),
+                        full_error_response=error_info,
                     )
                     raise ValueError(f"GPT-4o-mini API error: {error_msg}")
 
                 # Extract improved text and usage information
                 improved_text = response_data["choices"][0]["message"]["content"]
                 usage = response_data.get("usage", {})
+                model_used = response_data.get("model", "gpt-4o-mini")
+                finish_reason = response_data["choices"][0].get("finish_reason")
 
+                # Enhanced success logging with comprehensive API response details
                 logger.info(
-                    "Text improvement completed",
-                    original_length=len(text),
-                    improved_length=len(improved_text),
-                    input_tokens=usage.get("prompt_tokens", 0),
-                    output_tokens=usage.get("completion_tokens", 0),
+                    "GPT-4o-mini text improvement completed successfully",
+                    model_used=model_used,
+                    request_time_seconds=round(request_time, 2),
+                    finish_reason=finish_reason,
+                    original_text_length=len(text),
+                    original_word_count=len(text.split()),
+                    improved_text_length=len(improved_text),
+                    improved_word_count=len(improved_text.split()),
+                    text_length_change=len(improved_text) - len(text),
+                    word_count_change=len(improved_text.split()) - len(text.split()),
+                    prompt_tokens=usage.get("prompt_tokens", 0),
+                    completion_tokens=usage.get("completion_tokens", 0),
+                    total_tokens=usage.get("total_tokens", 0),
+                    tokens_per_second=(
+                        round(usage.get("total_tokens", 0) / request_time, 2) if request_time > 0 else None
+                    ),
+                    improved_text_preview=improved_text[:100] + "..." if len(improved_text) > 100 else improved_text,
                 )
 
-                return {"text": improved_text, "usage": usage, "model": "gpt-4o-mini"}
+                return {"text": improved_text, "usage": usage, "model": model_used}
 
         except aiohttp.ClientError as e:
-            logger.error("HTTP error during text improvement", error=str(e), text_length=len(text))
+            request_time = time.time() - request_start_time
+            logger.error(
+                "HTTP error during GPT-4o-mini text improvement",
+                url=url,
+                request_time_seconds=round(request_time, 2),
+                original_text_length=len(text),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise
         except Exception as e:
-            logger.error("Unexpected error during text improvement", error=str(e), text_length=len(text))
+            request_time = time.time() - request_start_time
+            logger.error(
+                "Unexpected error during GPT-4o-mini text improvement",
+                url=url,
+                request_time_seconds=round(request_time, 2),
+                original_text_length=len(text),
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise
 
     async def close(self):

@@ -238,6 +238,21 @@ class MessageRouter:
             self.log.warning("Audio message received but audio processor not available", chat_id=chat_id)
             response_text = "Sorry, audio processing is not available at the moment."
 
+            # Extract basic audio metadata even when processing is unavailable
+            audio_metadata = {}
+            for audio_type in ["voice", "audio", "video_note"]:
+                if audio_type in message:
+                    audio_data = message[audio_type]
+                    audio_metadata = {
+                        "message_type": audio_type,
+                        "file_id": audio_data.get("file_id"),
+                        "duration": audio_data.get("duration"),
+                        "file_size": audio_data.get("file_size"),
+                        "mime_type": audio_data.get("mime_type"),
+                        "processing_status": "unavailable",
+                    }
+                    break
+
             # Log the audio message attempt
             self._chat_logger.log_message(
                 chat_id=chat_id,
@@ -245,6 +260,7 @@ class MessageRouter:
                 text="[Audio message - processing unavailable]",
                 user_info=user_info,
                 response_length=len(response_text),
+                audio_metadata=audio_metadata,
             )
 
             return chat_id, response_text
@@ -262,6 +278,21 @@ class MessageRouter:
             if not transcribed_text:
                 response_text = "Sorry, I couldn't process the audio message. Please try again or send a text message."
 
+                # Extract audio metadata for failed processing
+                audio_metadata = {}
+                for audio_type in ["voice", "audio", "video_note"]:
+                    if audio_type in message:
+                        audio_data = message[audio_type]
+                        audio_metadata = {
+                            "message_type": audio_type,
+                            "file_id": audio_data.get("file_id"),
+                            "duration": audio_data.get("duration"),
+                            "file_size": audio_data.get("file_size"),
+                            "mime_type": audio_data.get("mime_type"),
+                            "processing_status": "failed",
+                        }
+                        break
+
                 # Log failed audio processing
                 self._chat_logger.log_message(
                     chat_id=chat_id,
@@ -269,6 +300,7 @@ class MessageRouter:
                     text="[Audio message - processing failed]",
                     user_info=user_info,
                     response_length=len(response_text),
+                    audio_metadata=audio_metadata,
                 )
 
                 return chat_id, response_text
@@ -286,6 +318,22 @@ class MessageRouter:
                 if result is None:
                     response_text = f'I heard: "{transcribed_text}"'
 
+                    # Extract audio metadata for logging
+                    audio_metadata = {}
+                    for audio_type in ["voice", "audio", "video_note"]:
+                        if audio_type in message:
+                            audio_data = message[audio_type]
+                            audio_metadata = {
+                                "message_type": audio_type,
+                                "file_id": audio_data.get("file_id"),
+                                "duration": audio_data.get("duration"),
+                                "file_size": audio_data.get("file_size"),
+                                "mime_type": audio_data.get("mime_type"),
+                                "transcribed_text_length": len(transcribed_text),
+                                "transcribed_word_count": len(transcribed_text.split()),
+                            }
+                            break
+
                     # Log the successful audio processing
                     self._chat_logger.log_message(
                         chat_id=chat_id,
@@ -293,6 +341,7 @@ class MessageRouter:
                         text=f"[Audio transcribed]: {transcribed_text}",
                         user_info=user_info,
                         response_length=len(response_text),
+                        audio_metadata=audio_metadata,
                     )
 
                     return chat_id, response_text
@@ -300,7 +349,20 @@ class MessageRouter:
                 return result
 
         except AudioProcessingError as e:
-            self.log.error("Audio processing failed", chat_id=chat_id, error=str(e))
+            # Enhanced error logging with detailed context
+            self.log.error(
+                "Audio processing failed with AudioProcessingError",
+                chat_id=chat_id,
+                message_id=message.get("message_id"),
+                user_id=user_info.get("id"),
+                username=user_info.get("username"),
+                error=str(e),
+                error_type=type(e).__name__,
+                audio_processor_available=bool(self._audio_processor),
+                message_keys=list(message.keys()),
+                audio_message_types=[key for key in ["voice", "audio", "video_note"] if key in message],
+                exc_info=True,
+            )
 
             # Provide user-friendly error messages based on error type
             error_message = str(e)
@@ -321,11 +383,11 @@ class MessageRouter:
                     "Sorry, I couldn't process the audio message. Please try again later or send a text message."
                 )
 
-            # Log the audio processing error
+            # Enhanced chat logging with error details
             self._chat_logger.log_message(
                 chat_id=chat_id,
                 message_type="audio",
-                text=f"[Audio processing error]: {error_message}",
+                text=f"[Audio processing error - {type(e).__name__}]: {error_message}",
                 user_info=user_info,
                 response_length=len(response_text),
             )
@@ -333,14 +395,27 @@ class MessageRouter:
             return chat_id, response_text
 
         except Exception as e:
-            self.log.error("Unexpected error processing audio message", chat_id=chat_id, error=str(e))
+            # Enhanced unexpected error logging
+            self.log.error(
+                "Unexpected error processing audio message",
+                chat_id=chat_id,
+                message_id=message.get("message_id"),
+                user_id=user_info.get("id"),
+                username=user_info.get("username"),
+                error=str(e),
+                error_type=type(e).__name__,
+                audio_processor_available=bool(self._audio_processor),
+                message_keys=list(message.keys()),
+                audio_message_types=[key for key in ["voice", "audio", "video_note"] if key in message],
+                exc_info=True,
+            )
             response_text = "Sorry, an unexpected error occurred while processing your audio message. Please try again."
 
-            # Log the unexpected error
+            # Enhanced chat logging for unexpected errors
             self._chat_logger.log_message(
                 chat_id=chat_id,
                 message_type="audio",
-                text=f"[Audio processing unexpected error]: {str(e)}",
+                text=f"[Audio processing unexpected error - {type(e).__name__}]: {str(e)}",
                 user_info=user_info,
                 response_length=len(response_text),
             )
