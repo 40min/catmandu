@@ -17,23 +17,25 @@ class ChatLogger:
     def log_message(
         self,
         chat_id: int,
-        message_type: str,  # "command" or "message"
+        message_type: str,  # "command", "message", or "audio"
         text: str,
         user_info: Optional[Dict] = None,
         command: Optional[str] = None,
         cattackle_name: Optional[str] = None,
         response_length: Optional[int] = None,
+        audio_metadata: Optional[Dict] = None,
     ) -> None:
         """Log a chat interaction to daily file.
 
         Args:
             chat_id: Telegram chat ID
-            message_type: Type of message ("command" or "message")
+            message_type: Type of message ("command", "message", or "audio")
             text: Message text
             user_info: User information from Telegram message
             command: Command name if it's a command message
             cattackle_name: Cattackle name if it's a command
             response_length: Length of bot response if applicable
+            audio_metadata: Additional metadata for audio messages
         """
         try:
             # Get current date for filename
@@ -74,6 +76,10 @@ class ChatLogger:
                 log_entry["is_bot"] = user_info.get("is_bot", False)
                 if user_info.get("language_code"):
                     log_entry["language_code"] = user_info["language_code"]
+
+            # Add audio-specific metadata if available
+            if audio_metadata:
+                log_entry["audio_metadata"] = audio_metadata
 
             # Write to file (append mode)
             with open(log_file, "a", encoding="utf-8") as f:

@@ -85,6 +85,84 @@ class TelegramClient:
             self.log.error("Failed to send message to Telegram", error=e, chat_id=chat_id)
             return None
 
+    async def get_file(self, file_id: str) -> Optional[Dict[str, Any]]:
+        """Get file information from Telegram API.
+
+        Args:
+            file_id: Unique identifier for the file
+
+        Returns:
+            File object from Telegram API if successful, None otherwise
+        """
+        payload = {"file_id": file_id}
+
+        try:
+            response = await self._client.post("/getFile", json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("ok"):
+                self.log.debug("File info retrieved successfully", file_id=file_id)
+                return data["result"]
+
+            self.log.error("Telegram API error getting file info", response=data, file_id=file_id)
+            return None
+
+        except httpx.HTTPError as e:
+            self.log.error("Failed to get file info from Telegram", error=e, file_id=file_id)
+            return None
+
+    async def download_file(self, file_path: str) -> Optional[bytes]:
+        """Download file content from Telegram servers.
+
+        Args:
+            file_path: File path returned by getFile API
+
+        Returns:
+            File content as bytes if successful, None otherwise
+        """
+        # Telegram file download URL uses a different base URL
+        download_url = f"https://api.telegram.org/file/bot{self._api_url.split('bot')[1]}/{file_path}"
+
+        try:
+            response = await self._client.get(download_url)
+            response.raise_for_status()
+
+            self.log.debug("File downloaded successfully", file_path=file_path, size=len(response.content))
+            return response.content
+
+        except httpx.HTTPError as e:
+            self.log.error("Failed to download file from Telegram", error=e, file_path=file_path)
+            return None
+
+    async def send_chat_action(self, chat_id: int, action: str) -> bool:
+        """Send chat action (typing, upload_voice, etc.).
+
+        Args:
+            chat_id: Unique identifier for the target chat
+            action: Type of action to broadcast
+
+        Returns:
+            True if successful, False otherwise
+        """
+        payload = {"chat_id": chat_id, "action": action}
+
+        try:
+            response = await self._client.post("/sendChatAction", json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("ok"):
+                self.log.debug("Chat action sent successfully", chat_id=chat_id, action=action)
+                return True
+
+            self.log.error("Telegram API error sending chat action", response=data, chat_id=chat_id, action=action)
+            return False
+
+        except httpx.HTTPError as e:
+            self.log.error("Failed to send chat action to Telegram", error=e, chat_id=chat_id, action=action)
+            return False
+
     async def close(self):
         """Close the HTTP client connection."""
         if not self._client.is_closed:

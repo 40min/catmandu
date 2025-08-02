@@ -81,6 +81,8 @@ _Diagram: Flow of a user command through the Catmandu polling system._
 ### Operations
 
 - **[Chat Logging](docs/chat-logging.md)** - Chat interaction logging system
+- **[Cost Reporting](docs/cost-reporting.md)** - Audio processing cost tracking and analysis
+- **[Cost Reporting Quick Reference](docs/cost-reporting-quick-reference.md)** - Common reporting commands and workflows
 
 > **Note**: All documentation is organized in the `docs/` and `architecture/` directories. Each cattackle also includes its own README with specific setup and usage instructions.
 
@@ -194,6 +196,41 @@ The core application exposes a few administrative endpoints:
 - `GET /health`: Returns the operational status of the service.
 - `GET /cattackles`: Returns a list of all discovered cattackles and their configurations.
 - `POST /admin/reload`: Triggers a re-scan of the cattackles directory to discover new modules.
+
+## Scripts
+
+The `scripts/` directory contains utility scripts for managing and troubleshooting your Catmandu installation:
+
+### Configuration Validation
+
+```bash
+python scripts/validate_config.py
+```
+
+This script validates your configuration without starting the full application. It's useful for:
+
+- Checking environment setup and configuration issues
+- Validating audio processing configuration
+- Testing directory permissions
+- Troubleshooting startup problems
+
+The script will provide detailed feedback about your configuration status and highlight any issues that need to be resolved.
+
+### Cost Reporting
+
+```bash
+python scripts/cost_report.py
+```
+
+Generate cost reports for audio processing usage (requires audio processing to be enabled and used).
+
+### Chat Analysis
+
+```bash
+python scripts/analyze_chats.py
+```
+
+Analyze chat logs for usage patterns and statistics.
 
 ## Contributing
 
