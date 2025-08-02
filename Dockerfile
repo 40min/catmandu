@@ -55,7 +55,7 @@ COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
 
 # Create necessary directories with proper permissions
-RUN mkdir -p logs/chats .data && chown -R catmandu:catmandu logs .data
+RUN mkdir -p logs/chats logs/costs .data && chown -R catmandu:catmandu logs .data
 
 # Switch to non-root user
 USER catmandu
@@ -83,7 +83,7 @@ COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
 
 # Create necessary directories with proper permissions
-RUN mkdir -p logs/chats .data && chown -R catmandu:catmandu logs .data
+RUN mkdir -p logs/chats logs/costs .data && chown -R catmandu:catmandu logs .data
 
 # Switch to non-root user
 USER catmandu
