@@ -88,9 +88,12 @@ class AudioProcessor:
         self.cost_tracker = cost_tracker
         self._openai_client: Optional[OpenAIClient] = None
 
-        # Validate configuration
-        if settings.audio_processing_enabled and not settings.openai_api_key:
-            raise ValueError("OpenAI API key is required when audio processing is enabled")
+        # Log configuration for debugging
+        logger.info(
+            f"Audio processor initialized with limits: "
+            f"{self.settings.max_audio_file_size_mb}MB file size, "
+            f"{self.settings.max_audio_duration_minutes} minutes duration"
+        )
 
     async def _get_openai_client(self) -> OpenAIClient:
         """Get or create OpenAI client instance."""

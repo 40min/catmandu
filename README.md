@@ -197,6 +197,41 @@ The core application exposes a few administrative endpoints:
 - `GET /cattackles`: Returns a list of all discovered cattackles and their configurations.
 - `POST /admin/reload`: Triggers a re-scan of the cattackles directory to discover new modules.
 
+## Scripts
+
+The `scripts/` directory contains utility scripts for managing and troubleshooting your Catmandu installation:
+
+### Configuration Validation
+
+```bash
+python scripts/validate_config.py
+```
+
+This script validates your configuration without starting the full application. It's useful for:
+
+- Checking environment setup and configuration issues
+- Validating audio processing configuration
+- Testing directory permissions
+- Troubleshooting startup problems
+
+The script will provide detailed feedback about your configuration status and highlight any issues that need to be resolved.
+
+### Cost Reporting
+
+```bash
+python scripts/cost_report.py
+```
+
+Generate cost reports for audio processing usage (requires audio processing to be enabled and used).
+
+### Chat Analysis
+
+```bash
+python scripts/analyze_chats.py
+```
+
+Analyze chat logs for usage patterns and statistics.
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.

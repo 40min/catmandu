@@ -26,8 +26,12 @@ log = structlog.get_logger()
 async def lifespan(app: FastAPI):
     # Startup
     log.info("Starting Catmandu Core")
-    settings = Settings()  # type: ignore
-    settings.validate_environment()
+    try:
+        settings = Settings()  # type: ignore
+        settings.validate_environment()
+    except Exception as e:
+        log.error(f"Configuration validation failed: {e}")
+        raise
 
     # Initialize clients
     telegram_client = TelegramClient(token=settings.telegram_bot_token)
@@ -50,16 +54,23 @@ async def lifespan(app: FastAPI):
     # Initialize audio processing components if enabled
     audio_processor = None
     cost_tracker = None
-    if settings.audio_processing_enabled:
-        log.info("Audio processing is enabled, initializing audio processor")
-        cost_tracker = CostTracker(settings=settings)
-        audio_processor = AudioProcessor(
-            settings=settings,
-            telegram_client=telegram_client,
-            cost_tracker=cost_tracker,
-        )
+    if settings.is_audio_processing_available():
+        log.info("Audio processing is enabled and properly configured, initializing audio processor")
+        try:
+            cost_tracker = CostTracker(settings=settings)
+            audio_processor = AudioProcessor(
+                settings=settings,
+                telegram_client=telegram_client,
+                cost_tracker=cost_tracker,
+            )
+            log.info("Audio processor initialized successfully")
+        except Exception as e:
+            log.error(f"Failed to initialize audio processor: {e}")
+            log.warning("Audio processing will be disabled for this session")
+            audio_processor = None
+            cost_tracker = None
     else:
-        log.info("Audio processing is disabled")
+        log.info(settings.get_audio_processing_status_message())
 
     # Initialize router with accumulator manager, chat logger, and optional audio processor
     message_router = MessageRouter(

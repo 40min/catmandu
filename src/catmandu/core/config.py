@@ -70,12 +70,65 @@ class Settings(BaseSettings):
             if v == "":
                 return None
             if not v.startswith("sk-"):
-                raise ValueError("OpenAI API key must start with 'sk-'")
+                raise ValueError(
+                    "OpenAI API key must start with 'sk-'. " "Please check your OPENAI_API_KEY environment variable."
+                )
+            # Basic length check - real OpenAI keys are much longer, but allow shorter ones for testing
+            if len(v) < 10:
+                raise ValueError(
+                    "OpenAI API key appears to be invalid (too short). "
+                    "Please verify your OPENAI_API_KEY environment variable."
+                )
+        return v
+
+    @field_validator("max_audio_file_size_mb")
+    @classmethod
+    def validate_max_audio_file_size_mb(cls, v: int) -> int:
+        """Validate maximum audio file size."""
+        if v <= 0:
+            raise ValueError("MAX_AUDIO_FILE_SIZE_MB must be greater than 0")
+        if v > 50:  # Telegram's file size limit is 50MB
+            raise ValueError("MAX_AUDIO_FILE_SIZE_MB cannot exceed 50MB (Telegram's limit)")
+        return v
+
+    @field_validator("max_audio_duration_minutes")
+    @classmethod
+    def validate_max_audio_duration_minutes(cls, v: int) -> int:
+        """Validate maximum audio duration."""
+        if v <= 0:
+            raise ValueError("MAX_AUDIO_DURATION_MINUTES must be greater than 0")
+        if v > 60:  # Reasonable upper limit
+            raise ValueError("MAX_AUDIO_DURATION_MINUTES cannot exceed 60 minutes")
+        return v
+
+    @field_validator("whisper_cost_per_minute")
+    @classmethod
+    def validate_whisper_cost_per_minute(cls, v: float) -> float:
+        """Validate Whisper API cost per minute."""
+        if v < 0:
+            raise ValueError("WHISPER_COST_PER_MINUTE must be non-negative")
+        return v
+
+    @field_validator("gpt4o_mini_input_cost_per_1m_tokens")
+    @classmethod
+    def validate_gpt4o_mini_input_cost_per_1m_tokens(cls, v: float) -> float:
+        """Validate GPT-4o-mini input cost per 1M tokens."""
+        if v < 0:
+            raise ValueError("GPT4O_MINI_INPUT_COST_PER_1M_TOKENS must be non-negative")
+        return v
+
+    @field_validator("gpt4o_mini_output_cost_per_1m_tokens")
+    @classmethod
+    def validate_gpt4o_mini_output_cost_per_1m_tokens(cls, v: float) -> float:
+        """Validate GPT-4o-mini output cost per 1M tokens."""
+        if v < 0:
+            raise ValueError("GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS must be non-negative")
         return v
 
     def validate_environment(self) -> None:
         """Validate critical environment variables and log configuration status."""
         logger = logging.getLogger(__name__)
+        validation_errors = []
 
         # Log configuration status
         logger.info("Configuration loaded successfully:")
@@ -94,13 +147,67 @@ class Settings(BaseSettings):
             logger.info(f"  - Max audio file size: {self.max_audio_file_size_mb}MB")
             logger.info(f"  - Max audio duration: {self.max_audio_duration_minutes} minutes")
             logger.info(f"  - Cost logs directory: {self.cost_logs_dir}")
+            logger.info(f"  - Whisper cost per minute: ${self.whisper_cost_per_minute:.4f}")
+            logger.info(f"  - GPT-4o-mini input cost per 1M tokens: ${self.gpt4o_mini_input_cost_per_1m_tokens:.2f}")
+            logger.info(f"  - GPT-4o-mini output cost per 1M tokens: ${self.gpt4o_mini_output_cost_per_1m_tokens:.2f}")
+        else:
+            logger.info("  - Audio processing is disabled. Voice messages will not be processed.")
+            logger.info("  - To enable audio processing, set AUDIO_PROCESSING_ENABLED=true and provide OPENAI_API_KEY")
 
         # Validate required environment variables
         if not self.telegram_bot_token:
-            logger.error("TELEGRAM_BOT_TOKEN is required but not provided")
-            sys.exit(1)
+            validation_errors.append(
+                "TELEGRAM_BOT_TOKEN is required but not provided. "
+                "Please set it in your environment variables or .env file."
+            )
 
         # Validate audio processing configuration
-        if self.audio_processing_enabled and not self.openai_api_key:
-            logger.error("OPENAI_API_KEY is required when audio processing is enabled")
+        if self.audio_processing_enabled:
+            if not self.openai_api_key:
+                validation_errors.append(
+                    "OPENAI_API_KEY is required when audio processing is enabled. "
+                    "Please provide a valid OpenAI API key or set AUDIO_PROCESSING_ENABLED=false."
+                )
+
+            # Additional validation for audio processing settings
+            try:
+                import os
+
+                if self.cost_logs_dir and not os.path.exists(os.path.dirname(self.cost_logs_dir) or "."):
+                    logger.warning(f"Cost logs directory parent does not exist: {self.cost_logs_dir}")
+            except Exception as e:
+                logger.warning(f"Could not validate cost logs directory: {e}")
+
+        # Report validation errors and exit if any critical issues found
+        if validation_errors:
+            logger.error("Configuration validation failed:")
+            for error in validation_errors:
+                logger.error(f"  ✗ {error}")
+            logger.error("Please fix the configuration issues above and restart the application.")
             sys.exit(1)
+
+        logger.info("✓ Configuration validation completed successfully")
+
+    def is_audio_processing_available(self) -> bool:
+        """Check if audio processing is properly configured and available."""
+        return self.audio_processing_enabled and self.openai_api_key is not None
+
+    def get_audio_processing_status_message(self) -> str:
+        """Get a user-friendly message about audio processing availability."""
+        if not self.audio_processing_enabled:
+            return "Audio processing is currently disabled. " "Voice messages and audio files cannot be processed."
+        elif not self.openai_api_key:
+            return "Audio processing is enabled but not properly configured. " "OpenAI API key is missing."
+        else:
+            return "Audio processing is enabled and properly configured."
+
+    def validate_audio_processing_requirements(self) -> None:
+        """Validate that audio processing requirements are met if enabled."""
+        from catmandu.core.errors import AudioProcessingConfigurationError
+
+        if self.audio_processing_enabled and not self.openai_api_key:
+            raise AudioProcessingConfigurationError(
+                "Audio processing is enabled but OPENAI_API_KEY is not provided. "
+                "Please set OPENAI_API_KEY environment variable or disable audio processing "
+                "by setting AUDIO_PROCESSING_ENABLED=false."
+            )

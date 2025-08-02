@@ -8,3 +8,11 @@ class CommandNotFoundError(CatmanduError):
 
 class CattackleExecutionError(CatmanduError):
     """Raised when a cattackle fails to execute."""
+
+
+class ConfigurationError(CatmanduError):
+    """Raised when there are configuration validation issues."""
+
+
+class AudioProcessingConfigurationError(ConfigurationError):
+    """Raised when there are audio processing configuration issues."""

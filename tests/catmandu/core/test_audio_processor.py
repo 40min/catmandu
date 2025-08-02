@@ -133,14 +133,15 @@ class TestAudioProcessorInitialization:
         assert processor.settings == disabled_settings
 
     def test_init_without_openai_key_when_enabled(self, mock_telegram_client, mock_cost_tracker):
-        """Test initialization fails when audio processing enabled but no OpenAI key."""
+        """Test initialization succeeds even without OpenAI key (validation happens at Settings level)."""
         settings = Settings(
             telegram_bot_token="test_token",
             audio_processing_enabled=True,
             openai_api_key=None,
         )
-        with pytest.raises(ValueError, match="OpenAI API key is required"):
-            AudioProcessor(settings, mock_telegram_client, mock_cost_tracker)
+        # AudioProcessor should initialize successfully - validation is handled by Settings
+        processor = AudioProcessor(settings, mock_telegram_client, mock_cost_tracker)
+        assert processor.settings == settings
 
 
 class TestAudioFileInfoExtraction:

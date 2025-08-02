@@ -2,6 +2,7 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from catmandu.core.config import Settings
 
@@ -161,3 +162,217 @@ class TestSettings:
             settings = Settings()
             # Should not raise any exception
             settings.validate_environment()
+
+    def test_is_audio_processing_available_enabled_with_key(self):
+        """Test that audio processing is available when enabled and API key is provided."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+                "OPENAI_API_KEY": "sk-valid-key-123",
+            },
+        ):
+            settings = Settings()
+            assert settings.is_audio_processing_available() is True
+
+    def test_is_audio_processing_available_disabled(self):
+        """Test that audio processing is not available when disabled."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "false",
+                "OPENAI_API_KEY": "sk-valid-key-123",
+            },
+        ):
+            settings = Settings()
+            assert settings.is_audio_processing_available() is False
+
+    def test_is_audio_processing_available_enabled_without_key(self):
+        """Test that audio processing is not available when enabled but no API key."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+            },
+        ):
+            settings = Settings()
+            assert settings.is_audio_processing_available() is False
+
+    def test_get_audio_processing_status_message_disabled(self):
+        """Test status message when audio processing is disabled."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "false",
+            },
+        ):
+            settings = Settings()
+            message = settings.get_audio_processing_status_message()
+            assert "disabled" in message.lower()
+            assert "voice messages and audio files cannot be processed" in message.lower()
+
+    def test_get_audio_processing_status_message_enabled_without_key(self):
+        """Test status message when audio processing is enabled but no API key."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+            },
+        ):
+            settings = Settings()
+            message = settings.get_audio_processing_status_message()
+            assert "enabled but not properly configured" in message.lower()
+            assert "openai api key is missing" in message.lower()
+
+    def test_get_audio_processing_status_message_enabled_with_key(self):
+        """Test status message when audio processing is properly configured."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+                "OPENAI_API_KEY": "sk-valid-key-123",
+            },
+        ):
+            settings = Settings()
+            message = settings.get_audio_processing_status_message()
+            assert "enabled and properly configured" in message.lower()
+
+    def test_validate_audio_processing_requirements_success(self):
+        """Test that audio processing requirements validation passes when properly configured."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+                "OPENAI_API_KEY": "sk-valid-key-123",
+            },
+        ):
+            settings = Settings()
+            # Should not raise any exception
+            settings.validate_audio_processing_requirements()
+
+    def test_validate_audio_processing_requirements_disabled(self):
+        """Test that audio processing requirements validation passes when disabled."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "false",
+            },
+        ):
+            settings = Settings()
+            # Should not raise any exception
+            settings.validate_audio_processing_requirements()
+
+    def test_validate_audio_processing_requirements_failure(self):
+        """Test that audio processing requirements validation fails when enabled without API key."""
+        from catmandu.core.errors import AudioProcessingConfigurationError
+
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "AUDIO_PROCESSING_ENABLED": "true",
+            },
+        ):
+            settings = Settings()
+            with pytest.raises(AudioProcessingConfigurationError) as exc_info:
+                settings.validate_audio_processing_requirements()
+            assert "OPENAI_API_KEY is not provided" in str(exc_info.value)
+
+    def test_audio_file_size_validation_zero(self):
+        """Test that zero audio file size is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "MAX_AUDIO_FILE_SIZE_MB": "0",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "MAX_AUDIO_FILE_SIZE_MB must be greater than 0" in str(exc_info.value)
+
+    def test_audio_file_size_validation_too_large(self):
+        """Test that audio file size over 50MB is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "MAX_AUDIO_FILE_SIZE_MB": "51",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "MAX_AUDIO_FILE_SIZE_MB cannot exceed 50MB" in str(exc_info.value)
+
+    def test_audio_duration_validation_zero(self):
+        """Test that zero audio duration is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "MAX_AUDIO_DURATION_MINUTES": "0",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "MAX_AUDIO_DURATION_MINUTES must be greater than 0" in str(exc_info.value)
+
+    def test_audio_duration_validation_too_large(self):
+        """Test that audio duration over 60 minutes is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "MAX_AUDIO_DURATION_MINUTES": "61",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "MAX_AUDIO_DURATION_MINUTES cannot exceed 60 minutes" in str(exc_info.value)
+
+    def test_cost_validation_negative_whisper_cost(self):
+        """Test that negative Whisper cost is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "WHISPER_COST_PER_MINUTE": "-0.01",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "WHISPER_COST_PER_MINUTE must be non-negative" in str(exc_info.value)
+
+    def test_cost_validation_negative_gpt_input_cost(self):
+        """Test that negative GPT input cost is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "GPT4O_MINI_INPUT_COST_PER_1M_TOKENS": "-0.01",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "GPT4O_MINI_INPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)
+
+    def test_cost_validation_negative_gpt_output_cost(self):
+        """Test that negative GPT output cost is rejected."""
+        with patch.dict(
+            os.environ,
+            {
+                "TELEGRAM_BOT_TOKEN": "dummy_token",
+                "GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS": "-0.01",
+            },
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                Settings()
+            assert "GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)
