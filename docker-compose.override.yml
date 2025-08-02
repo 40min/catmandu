@@ -17,6 +17,8 @@ services:
       # Mount source code for live reloading
       - ./src:/app/src:ro
       - ./cattackles:/app/cattackles:ro
+      # Mount cost logs directory for development
+      - ./logs/costs:/app/logs/costs
     environment:
       - LOG_LEVEL=DEBUG
       - UVICORN_LOG_LEVEL=debug

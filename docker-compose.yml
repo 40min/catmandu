@@ -15,6 +15,16 @@ services:
       - MAX_MESSAGE_LENGTH=${MAX_MESSAGE_LENGTH:-1000}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
 
+      # Audio processing configuration
+      - AUDIO_PROCESSING_ENABLED=${AUDIO_PROCESSING_ENABLED:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MAX_AUDIO_FILE_SIZE_MB=${MAX_AUDIO_FILE_SIZE_MB:-25}
+      - MAX_AUDIO_DURATION_MINUTES=${MAX_AUDIO_DURATION_MINUTES:-10}
+      - WHISPER_COST_PER_MINUTE=${WHISPER_COST_PER_MINUTE:-0.006}
+      - GPT4O_MINI_INPUT_COST_PER_1M_TOKENS=${GPT4O_MINI_INPUT_COST_PER_1M_TOKENS:-0.15}
+      - GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS=${GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS:-0.60}
+      - COST_LOGS_DIR=${COST_LOGS_DIR:-logs/costs}
+
       # Python environment
       - PYTHONPATH=/app/src
       - UVICORN_HOST=0.0.0.0
@@ -26,6 +36,8 @@ services:
       - update_data:/app/.data
       # Persist chat logs
       - chat_logs:/app/logs
+      # Persist cost logs for audio processing
+      - cost_logs:/app/logs/costs
     depends_on:
       echo-cattackle:
         condition: service_healthy
@@ -83,3 +95,5 @@ volumes:
     name: catmandu-update-data
   chat_logs:
     name: catmandu-chat-logs
+  cost_logs:
+    name: catmandu-cost-logs

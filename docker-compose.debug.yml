@@ -22,6 +22,8 @@ services:
       - ./cattackles:/app/cattackles:ro
       # Mount additional debugging tools
       - ./scripts:/app/scripts:ro
+      # Mount cost logs directory for debugging
+      - ./logs/costs:/app/logs/costs
     # Use default command but with enhanced environment
 
   echo-cattackle:
