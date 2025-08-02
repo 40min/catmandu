@@ -495,6 +495,76 @@ class AudioProcessor:
             "gpt_tokens_output": token_usage.get("completion_tokens", 0),
         }
 
+    def _assess_transcription_quality(self, original_text: str, improved_text: str) -> bool:
+        """Assess transcription quality and determine if warning is needed.
+
+        Args:
+            original_text: Original transcription from Whisper
+            improved_text: Improved text from GPT-4o-mini
+
+        Returns:
+            True if quality warning should be shown to user
+        """
+        # Check for indicators of poor transcription quality
+        quality_indicators = [
+            # Very short transcriptions might indicate poor audio
+            len(original_text.strip()) < 10,
+            # High ratio of non-alphabetic characters (excluding spaces and punctuation)
+            sum(1 for c in original_text if not (c.isalnum() or c.isspace() or c in ".,!?;:-'\""))
+            / max(len(original_text), 1)
+            > 0.2,
+            # Excessive repetition of words or phrases
+            self._has_excessive_repetition(original_text),
+            # Large difference between original and improved text length
+            abs(len(improved_text) - len(original_text)) / max(len(original_text), 1) > 1.5,
+            # Contains many single characters or very short words
+            len([word for word in original_text.split() if len(word) <= 2]) / max(len(original_text.split()), 1) > 0.4,
+        ]
+
+        # Return warning if any significant quality indicator is present
+        return sum(quality_indicators) >= 1
+
+    def _has_excessive_repetition(self, text: str) -> bool:
+        """Check if text has excessive repetition of words or phrases.
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            True if excessive repetition is detected
+        """
+        words = text.lower().split()
+        if len(words) < 5:
+            return False
+
+        # Check for repeated words
+        word_counts = {}
+        for word in words:
+            word_counts[word] = word_counts.get(word, 0) + 1
+
+        # If any word appears more than 30% of the time, it's likely repetitive
+        max_word_frequency = max(word_counts.values()) / len(words)
+        if max_word_frequency > 0.3:
+            return True
+
+        # Check for repeated phrases (2-3 words)
+        for phrase_length in [2, 3]:
+            phrases = []
+            for i in range(len(words) - phrase_length + 1):
+                phrase = " ".join(words[i : i + phrase_length])
+                phrases.append(phrase)
+
+            if phrases:
+                phrase_counts = {}
+                for phrase in phrases:
+                    phrase_counts[phrase] = phrase_counts.get(phrase, 0) + 1
+
+                max_phrase_frequency = max(phrase_counts.values()) / len(phrases)
+                if max_phrase_frequency > 0.4:
+                    return True
+
+        return False
+
     async def process_audio_message(self, update: Dict) -> Optional[str]:
         """Process audio message and return transcribed text.
 
@@ -615,7 +685,18 @@ class AudioProcessor:
                 ),
             )
 
-            return improved_text
+            # Check for potentially low-quality transcriptions
+            quality_warning = self._assess_transcription_quality(transcription_result.text, improved_text)
+
+            # Add quality warning to cost data for logging
+            cost_data["quality_warning"] = quality_warning
+
+            # Add quality warning to response if needed
+            final_text = improved_text
+            if quality_warning:
+                final_text = f"{improved_text}\n\n⚠️ Note: The audio quality may have affected transcription accuracy."
+
+            return final_text
 
         except Exception as e:
             processing_time = time.time() - start_time

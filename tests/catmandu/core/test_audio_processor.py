@@ -520,6 +520,80 @@ class TestResourceCleanup:
 
         mock_client.close.assert_called_once()
 
+
+class TestTranscriptionQualityAssessment:
+    """Test transcription quality assessment functionality."""
+
+    def test_assess_good_quality_transcription(self, audio_processor):
+        """Test quality assessment for good transcription."""
+        original = "Hello, this is a clear and well-transcribed message with good quality."
+        improved = "Hello, this is a clear and well-transcribed message with good quality."
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert not warning_needed
+
+    def test_assess_poor_quality_short_text(self, audio_processor):
+        """Test quality assessment for very short transcription."""
+        original = "uh um"
+        improved = "Excuse me."
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert warning_needed
+
+    def test_assess_poor_quality_excessive_repetition(self, audio_processor):
+        """Test quality assessment for repetitive transcription."""
+        original = "the the the the the same word repeated many times"
+        improved = "The same word repeated many times."
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert warning_needed
+
+    def test_assess_poor_quality_many_special_chars(self, audio_processor):
+        """Test quality assessment for transcription with many special characters."""
+        original = "h3ll0 w0rld @@@ ### $$$ %%% ^^^ &&& *** ((( )))"
+        improved = "Hello world, this is much better text."
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert warning_needed
+
+    def test_assess_poor_quality_large_length_difference(self, audio_processor):
+        """Test quality assessment for large difference in text length."""
+        original = "short"
+        improved = (
+            "This is a much longer and more detailed transcription that is significantly different from the original."
+        )
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert warning_needed
+
+    def test_assess_poor_quality_many_short_words(self, audio_processor):
+        """Test quality assessment for many single/short words."""
+        original = "a b c d e f g h i j k l m n o p q r s t u v w x y z"
+        improved = "This is much better text with proper words."
+
+        warning_needed = audio_processor._assess_transcription_quality(original, improved)
+        assert warning_needed
+
+    def test_has_excessive_repetition_word_repetition(self, audio_processor):
+        """Test detection of excessive word repetition."""
+        text = "hello hello hello hello hello world"
+        assert audio_processor._has_excessive_repetition(text)
+
+    def test_has_excessive_repetition_phrase_repetition(self, audio_processor):
+        """Test detection of excessive phrase repetition."""
+        text = "hello world hello world hello world hello world"
+        assert audio_processor._has_excessive_repetition(text)
+
+    def test_has_excessive_repetition_normal_text(self, audio_processor):
+        """Test that normal text doesn't trigger repetition detection."""
+        text = "This is a normal sentence with varied vocabulary and structure."
+        assert not audio_processor._has_excessive_repetition(text)
+
+    def test_has_excessive_repetition_short_text(self, audio_processor):
+        """Test that very short text doesn't trigger repetition detection."""
+        text = "hello world"
+        assert not audio_processor._has_excessive_repetition(text)
+
     @pytest.mark.asyncio
     async def test_close_no_client(self, audio_processor):
         """Test cleanup when no OpenAI client exists."""
