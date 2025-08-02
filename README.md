@@ -81,6 +81,8 @@ _Diagram: Flow of a user command through the Catmandu polling system._
 ### Operations
 
 - **[Chat Logging](docs/chat-logging.md)** - Chat interaction logging system
+- **[Cost Reporting](docs/cost-reporting.md)** - Audio processing cost tracking and analysis
+- **[Cost Reporting Quick Reference](docs/cost-reporting-quick-reference.md)** - Common reporting commands and workflows
 
 > **Note**: All documentation is organized in the `docs/` and `architecture/` directories. Each cattackle also includes its own README with specific setup and usage instructions.
 

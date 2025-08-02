@@ -319,3 +319,127 @@ class CostTracker:
         except Exception as e:
             logger.error("Failed to get date range costs", start_date=start_date, end_date=end_date, error=str(e))
             raise
+
+    def get_user_breakdown(self, start_date: str, end_date: str) -> Dict:
+        """Get cost breakdown by user for a date range.
+
+        Args:
+            start_date: Start date string in YYYY-MM-DD format
+            end_date: End date string in YYYY-MM-DD format
+
+        Returns:
+            Dictionary with user-specific cost breakdowns
+        """
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+            if start > end:
+                raise ValueError("Start date must be before or equal to end date")
+
+            user_stats = {}
+            current_date = start
+
+            while current_date <= end:
+                date_str = current_date.isoformat()
+                log_file = self.cost_logs_dir / f"costs-{date_str}.jsonl"
+
+                if log_file.exists():
+                    with open(log_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if line.strip():
+                                entry = json.loads(line.strip())
+                                user_info = entry["user_info"]
+                                user_id = user_info.get("user_id", "unknown")
+                                username = user_info.get("username", "unknown")
+                                first_name = user_info.get("first_name", "")
+                                last_name = user_info.get("last_name", "")
+
+                                # Create user key
+                                user_key = f"{user_id}"
+                                if user_key not in user_stats:
+                                    user_stats[user_key] = {
+                                        "user_id": user_id,
+                                        "username": username,
+                                        "first_name": first_name,
+                                        "last_name": last_name,
+                                        "display_name": self._get_display_name(user_info),
+                                        "total_cost": 0.0,
+                                        "whisper_cost": 0.0,
+                                        "gpt_cost": 0.0,
+                                        "total_requests": 0,
+                                        "total_audio_duration": 0.0,
+                                        "total_tokens_input": 0,
+                                        "total_tokens_output": 0,
+                                        "total_processing_time": 0.0,
+                                        "total_file_size": 0,
+                                        "average_file_size": 0.0,
+                                        "average_duration": 0.0,
+                                        "cost_per_minute": 0.0,
+                                    }
+
+                                # Aggregate user stats
+                                stats = user_stats[user_key]
+                                stats["total_cost"] += entry["total_cost_usd"]
+                                stats["whisper_cost"] += entry["whisper_cost_usd"]
+                                stats["gpt_cost"] += entry["gpt_cost_usd"]
+                                stats["total_requests"] += 1
+                                stats["total_audio_duration"] += entry["audio_duration_minutes"]
+                                stats["total_tokens_input"] += entry["gpt_tokens_input"]
+                                stats["total_tokens_output"] += entry["gpt_tokens_output"]
+                                stats["total_processing_time"] += entry["processing_time_seconds"]
+                                stats["total_file_size"] += entry["file_size_bytes"]
+
+                current_date = current_date + timedelta(days=1)
+
+            # Calculate averages and round values
+            for user_key, stats in user_stats.items():
+                if stats["total_requests"] > 0:
+                    stats["average_file_size"] = stats["total_file_size"] / stats["total_requests"]
+                    stats["average_duration"] = stats["total_audio_duration"] / stats["total_requests"]
+                    stats["cost_per_minute"] = (
+                        stats["total_cost"] / stats["total_audio_duration"]
+                        if stats["total_audio_duration"] > 0
+                        else 0.0
+                    )
+
+                # Round values
+                stats["total_cost"] = round(stats["total_cost"], 4)
+                stats["whisper_cost"] = round(stats["whisper_cost"], 4)
+                stats["gpt_cost"] = round(stats["gpt_cost"], 4)
+                stats["total_audio_duration"] = round(stats["total_audio_duration"], 2)
+                stats["total_processing_time"] = round(stats["total_processing_time"], 2)
+                stats["average_file_size"] = round(stats["average_file_size"], 0)
+                stats["average_duration"] = round(stats["average_duration"], 2)
+                stats["cost_per_minute"] = round(stats["cost_per_minute"], 4)
+
+            return {
+                "start_date": start_date,
+                "end_date": end_date,
+                "users": user_stats,
+                "total_users": len(user_stats),
+            }
+
+        except Exception as e:
+            logger.error("Failed to get user breakdown", start_date=start_date, end_date=end_date, error=str(e))
+            raise
+
+    def _get_display_name(self, user_info: Dict) -> str:
+        """Generate a display name for a user.
+
+        Args:
+            user_info: Dictionary containing user information
+
+        Returns:
+            Human-readable display name
+        """
+        username = user_info.get("username", "")
+        first_name = user_info.get("first_name", "")
+        last_name = user_info.get("last_name", "")
+
+        if username:
+            return f"@{username}"
+        elif first_name or last_name:
+            return f"{first_name} {last_name}".strip()
+        else:
+            return f"User {user_info.get('user_id', 'Unknown')}"
