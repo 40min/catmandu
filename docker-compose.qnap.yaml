@@ -1,6 +1,20 @@
 # QNAP-specific Docker Compose configuration
-# This extends the main docker-compose.yml with QNAP-specific network settings
+# This extends the main docker-compose.yml with QNAP-specific network settings and host volume mounts
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.qnap.yaml up
+
+services:
+  catmandu-core:
+    volumes:
+      # Override container volumes with host bind mounts for QNAP
+      # This allows direct access to logs from the host for analysis
+      - ./logs:/app/logs
+      - ./logs/costs:/app/logs/costs
+      - ./.data:/app/.data
+
+  echo-cattackle:
+    volumes:
+      # Mount logs directory for cattackle logs as well
+      - ./logs/cattackles:/app/logs
 
 networks:
   catmandu-network:

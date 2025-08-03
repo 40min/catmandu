@@ -34,11 +34,20 @@ help:
 	@echo ""
 	@echo "Analysis Commands:"
 	@echo "  make help-analyze    - Show detailed chat analysis commands"
+	@echo "  make help-costs      - Show detailed cost analysis commands"
 	@echo "  make analyze-chats   - Quick chat log analysis"
+	@echo "  make analyze-costs-daily - Quick daily cost analysis"
+	@echo "  make analyze-qnap-costs-daily - QNAP daily cost analysis (host logs)"
 	@echo ""
 	@echo "For detailed help on specific categories, use:"
 	@echo "  make help-docker     - Docker Compose commands"
 	@echo "  make help-analyze    - Chat analysis commands"
+	@echo "  make help-costs      - Cost analysis commands"
+	@echo ""
+	@echo "QNAP Quick Start:"
+	@echo "  make docker-qnap-setup  - Setup QNAP log directories"
+	@echo "  make docker-qnap        - Start QNAP deployment"
+	@echo "  make analyze-qnap-costs-daily - Analyze costs from host logs"
 
 # Chat log analysis commands
 analyze-chats:
@@ -62,6 +71,74 @@ analyze-chats-date:
 	@echo "=== Chat Log Analysis for $(DATE) ==="
 	@uv run python scripts/analyze_chats.py --output summary --date $(DATE)
 
+# Cost analysis commands
+analyze-costs-daily:
+	@echo "=== Daily Cost Analysis ==="
+	@uv run python scripts/cost_report.py --daily
+
+analyze-costs-weekly:
+	@echo "=== Weekly Cost Analysis ==="
+	@uv run python scripts/cost_report.py --weekly
+
+analyze-costs-monthly:
+	@echo "=== Monthly Cost Analysis ==="
+	@uv run python scripts/cost_report.py --monthly
+
+analyze-costs-daily-detailed:
+	@echo "=== Daily Cost Analysis (Detailed) ==="
+	@uv run python scripts/cost_report.py --daily --user-breakdown --api-breakdown
+
+analyze-costs-weekly-detailed:
+	@echo "=== Weekly Cost Analysis (Detailed) ==="
+	@uv run python scripts/cost_report.py --weekly --user-breakdown --api-breakdown
+
+analyze-costs-monthly-detailed:
+	@echo "=== Monthly Cost Analysis (Detailed) ==="
+	@uv run python scripts/cost_report.py --monthly --user-breakdown --api-breakdown
+
+# Cost analysis with date filter (usage: make analyze-costs-date DATE=2024-01-15)
+analyze-costs-date:
+	@echo "=== Cost Analysis for $(DATE) ==="
+	@uv run python scripts/cost_report.py --daily --date $(DATE) --user-breakdown --api-breakdown
+
+# Cost analysis for date range (usage: make analyze-costs-range START=2024-01-01 END=2024-01-31)
+analyze-costs-range:
+	@echo "=== Cost Analysis from $(START) to $(END) ==="
+	@uv run python scripts/cost_report.py --range --start-date $(START) --end-date $(END) --user-breakdown --api-breakdown
+
+# QNAP-specific analysis commands (for host-mounted logs)
+analyze-qnap-costs-daily:
+	@echo "=== QNAP Daily Cost Analysis ==="
+	@if [ -d "./logs/costs" ]; then \
+		COST_LOGS_DIR=./logs/costs uv run python scripts/cost_report.py --daily --user-breakdown --api-breakdown; \
+	else \
+		echo "❌ QNAP logs directory not found. Run 'make docker-qnap-setup' first."; \
+	fi
+
+analyze-qnap-costs-weekly:
+	@echo "=== QNAP Weekly Cost Analysis ==="
+	@if [ -d "./logs/costs" ]; then \
+		COST_LOGS_DIR=./logs/costs uv run python scripts/cost_report.py --weekly --user-breakdown --api-breakdown; \
+	else \
+		echo "❌ QNAP logs directory not found. Run 'make docker-qnap-setup' first."; \
+	fi
+
+analyze-qnap-costs-monthly:
+	@echo "=== QNAP Monthly Cost Analysis ==="
+	@if [ -d "./logs/costs" ]; then \
+		COST_LOGS_DIR=./logs/costs uv run python scripts/cost_report.py --monthly --user-breakdown --api-breakdown; \
+	else \
+		echo "❌ QNAP logs directory not found. Run 'make docker-qnap-setup' first."; \
+	fi
+
+analyze-qnap-chats:
+	@echo "=== QNAP Chat Log Analysis ==="
+	@if [ -d "./logs" ]; then \
+		uv run python scripts/analyze_chats.py --output summary --logs-dir ./logs/chats; \
+	else \
+		echo "❌ QNAP logs directory not found. Run 'make docker-qnap-setup' first."; \
+	fi
+
 # Docker Compose commands
 docker-build:
 	@echo "=== Building Docker images ==="
@@ -82,6 +159,22 @@ docker-down:
 docker-qnap-down:
 	@echo "=== Stopping QNAP Docker Compose services ==="
 	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml down
+
+docker-qnap-logs:
+	@echo "=== Viewing QNAP Docker Compose logs ==="
+	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml logs -f
+
+docker-qnap-restart:
+	@echo "=== Restarting QNAP Docker Compose services ==="
+	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml restart
+
+docker-qnap-ps:
+	@echo "=== QNAP Docker Compose services status ==="
+	docker compose -f docker-compose.yml -f docker-compose.qnap.yaml ps
+
+docker-qnap-setup:
+	@echo "=== Setting up QNAP log directories ==="
+	@./scripts/setup_qnap_logs.sh
 
 docker-logs:
 	@echo "=== Viewing Docker Compose logs ==="
@@ -165,6 +258,10 @@ help-docker:
 	@echo "  make docker-down        - Stop and remove containers"
 	@echo "  make docker-qnap-down   - Stop QNAP configuration containers"
 	@echo "  make docker-logs        - Follow logs from all services"
+	@echo "  make docker-qnap-logs   - Follow logs from QNAP configuration services"
+	@echo "  make docker-qnap-restart - Restart QNAP configuration services"
+	@echo "  make docker-qnap-ps     - Show QNAP configuration services status"
+	@echo "  make docker-qnap-setup  - Setup required directories for QNAP deployment"
 	@echo "  make docker-restart     - Restart all services"
 	@echo "  make docker-ps          - Show services status"
 	@echo ""
@@ -212,3 +309,34 @@ help-analyze:
 	@echo ""
 	@echo "Direct script usage:"
 	@echo "  uv run python scripts/analyze_chats.py --help"
+
+# Show help for cost analysis commands
+help-costs:
+	@echo "Cost Analysis Commands:"
+	@echo ""
+	@echo "Basic Cost Reports:"
+	@echo "  make analyze-costs-daily    - Show daily cost summary for today"
+	@echo "  make analyze-costs-weekly   - Show weekly cost summary for current week"
+	@echo "  make analyze-costs-monthly  - Show monthly cost summary for current month"
+	@echo ""
+	@echo "Detailed Cost Reports (with user and API breakdowns):"
+	@echo "  make analyze-costs-daily-detailed   - Detailed daily cost analysis"
+	@echo "  make analyze-costs-weekly-detailed  - Detailed weekly cost analysis"
+	@echo "  make analyze-costs-monthly-detailed - Detailed monthly cost analysis"
+	@echo ""
+	@echo "Date-Specific Analysis:"
+	@echo "  make analyze-costs-date DATE=YYYY-MM-DD - Detailed analysis for specific date"
+	@echo "  make analyze-costs-range START=YYYY-MM-DD END=YYYY-MM-DD - Analysis for date range"
+	@echo ""
+	@echo "QNAP-Specific Analysis (for host-mounted logs):"
+	@echo "  make analyze-qnap-costs-daily   - Daily cost analysis from QNAP host logs"
+	@echo "  make analyze-qnap-costs-weekly  - Weekly cost analysis from QNAP host logs"
+	@echo "  make analyze-qnap-costs-monthly - Monthly cost analysis from QNAP host logs"
+	@echo "  make analyze-qnap-chats         - Chat analysis from QNAP host logs"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make analyze-costs-date DATE=2024-01-15"
+	@echo "  make analyze-costs-range START=2024-01-01 END=2024-01-31"
+	@echo ""
+	@echo "Direct script usage:"
+	@echo "  uv run python scripts/cost_report.py --help"
