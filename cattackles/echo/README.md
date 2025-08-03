@@ -1,6 +1,6 @@
 # Echo Cattackle
 
-A demonstration cattackle that echoes text and generates AI-powered jokes using Google Gemini. This cattackle showcases **message accumulation** functionality and serves as a reference implementation for new cattackles.
+A demonstration cattackle that echoes text and generates AI-powered jokes using OpenAI GPT-4o-mini (with Gemini as fallback). This cattackle showcases **message accumulation** functionality and serves as a reference implementation for new cattackles.
 
 ## Features
 
@@ -86,10 +86,12 @@ This is the recommended approach for development and testing individual cattackl
    ```bash
    # In the project root directory
    cp .env.example .env
-   # Edit .env and add your GEMINI_API_KEY
+   # Edit .env and add your OPENAI_API_KEY (and optionally GEMINI_API_KEY for fallback)
    ```
 
-4. **Get your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)**
+4. **Get your API keys:**
+   - **OpenAI API key** (primary): Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+   - **Gemini API key** (fallback, optional): Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 #### Running
 
@@ -124,7 +126,7 @@ This approach runs both the core service and the echo cattackle in containers, w
 
    ```bash
    cp .env.example .env
-   # Edit .env with your TELEGRAM_BOT_TOKEN and GEMINI_API_KEY
+   # Edit .env with your TELEGRAM_BOT_TOKEN and OPENAI_API_KEY (and optionally GEMINI_API_KEY)
    ```
 
    **Note:** All environment variables must be in the root `.env` file, not in cattackle-specific `.env` files, as Docker Compose only reads from the root directory.
@@ -151,8 +153,15 @@ For more details on Docker deployment, see the [Docker documentation](../../docs
 
 All environment variables should be configured in the root `.env` file:
 
-- `GEMINI_API_KEY`: Your Google Gemini API key (required for joke functionality)
+**AI Model Configuration (at least one required for joke functionality):**
+
+- `OPENAI_API_KEY`: Your OpenAI API key (primary model for jokes)
+- `OPENAI_MODEL`: OpenAI model to use (default: gpt-4o-mini)
+- `GEMINI_API_KEY`: Your Google Gemini API key (fallback model for jokes)
 - `GEMINI_MODEL`: Gemini model to use (default: gemini-2.5-flash-lite-preview-06-17)
+
+**Server Configuration:**
+
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `MCP_SERVER_PORT`: Port for the MCP server (default: 8001)
 
@@ -197,7 +206,7 @@ User: /echo_echo
 Bot: Task 1: Buy groceries; Task 2: Walk the dog; Task 3: Call mom
 ```
 
-Note: The joke command requires a valid GEMINI_API_KEY to be configured in the .env file.
+Note: The joke command requires either OPENAI_API_KEY or GEMINI_API_KEY to be configured in the .env file. OpenAI (GPT-4o-mini) is used as the primary model, with Gemini as fallback.
 
 ## Related Documentation
 

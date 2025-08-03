@@ -3,6 +3,7 @@ import logging
 from typing import List, Optional
 
 from echo.clients.gemini_client import GeminiClient
+from echo.clients.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -10,13 +11,15 @@ logger = logging.getLogger(__name__)
 class EchoCattackle:
     """Core echo cattackle functionality."""
 
-    def __init__(self, gemini_client: Optional[GeminiClient] = None):
+    def __init__(self, openai_client: Optional[OpenAIClient] = None, gemini_client: Optional[GeminiClient] = None):
         """
         Initialize the echo cattackle.
 
         Args:
-            gemini_client: Optional Gemini client for joke generation
+            openai_client: Optional OpenAI client for joke generation (primary)
+            gemini_client: Optional Gemini client for joke generation (fallback)
         """
+        self.openai_client = openai_client
         self.gemini_client = gemini_client
 
     async def echo(self, text: str, accumulated_params: Optional[List[str]] = None) -> str:
@@ -80,6 +83,7 @@ class EchoCattackle:
     async def joke(self, text: str, accumulated_params: Optional[List[str]] = None) -> str:
         """
         Generates a funny anekdot (short joke) about the provided text using LLM.
+        Uses OpenAI as primary model, falls back to Gemini if OpenAI is not available.
         Supports both immediate parameters and accumulated parameters.
 
         Args:
@@ -114,9 +118,11 @@ class EchoCattackle:
                 }
             )
 
-        # Check if Gemini client is available and configured
-        if not self.gemini_client:
-            return json.dumps({"data": "", "error": "Gemini model not configured"})
+        # Check if any AI client is available
+        if not self.openai_client and not self.gemini_client:
+            return json.dumps(
+                {"data": "", "error": "No AI model configured. Please set OPENAI_API_KEY or GEMINI_API_KEY."}
+            )
 
         try:
             # Create a prompt for generating a short, funny anekdot
@@ -128,16 +134,36 @@ The anekdot should be:
 - Family-friendly
 - In the style of a classic anekdot or dad joke
 - Related to the topic: {topic}
+- On the same language as a topic
 
 Just return the joke, no additional text."""
 
-            # Generate the joke using Gemini
-            joke_text = await self.gemini_client.generate_content(prompt)
+            # Try OpenAI first (primary model)
+            if self.openai_client:
+                try:
+                    logger.info(f"Generating joke using OpenAI for topic: {topic}")
+                    joke_text = await self.openai_client.generate_content(prompt)
+                    response = json.dumps({"data": joke_text, "error": None})
+                    logger.info(f"Generated joke successfully using OpenAI for topic: {topic}")
+                    return response
+                except Exception as e:
+                    logger.warning(f"OpenAI failed, trying Gemini fallback: {e}")
 
-            response = json.dumps({"data": joke_text, "error": None})
-            logger.info(f"Generated joke successfully for topic: {topic}")
-            return response
+            # Fallback to Gemini if OpenAI failed or is not available
+            if self.gemini_client:
+                try:
+                    logger.info(f"Generating joke using Gemini for topic: {topic}")
+                    joke_text = await self.gemini_client.generate_content(prompt)
+                    response = json.dumps({"data": joke_text, "error": None})
+                    logger.info(f"Generated joke successfully using Gemini for topic: {topic}")
+                    return response
+                except Exception as e:
+                    logger.error(f"Gemini also failed: {e}")
+                    return json.dumps({"data": "", "error": f"Failed to generate joke with both models: {str(e)}"})
+
+            # This shouldn't happen due to the check above, but just in case
+            return json.dumps({"data": "", "error": "No working AI model available"})
 
         except Exception as e:
-            logger.error(f"Error generating joke: {e}")
+            logger.error(f"Unexpected error generating joke: {e}")
             return json.dumps({"data": "", "error": f"Failed to generate joke: {str(e)}"})

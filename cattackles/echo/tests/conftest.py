@@ -7,20 +7,33 @@ from unittest.mock import MagicMock
 
 import pytest
 from echo.clients.gemini_client import GeminiClient
+from echo.clients.openai_client import OpenAIClient
 from echo.config import EchoCattackleSettings
 from echo.core.cattackle import EchoCattackle
 
 
 # Common test data fixtures
 @pytest.fixture
-def test_api_key():
-    """Standard test API key."""
-    return "test-api-key"
+def test_openai_api_key():
+    """Standard test OpenAI API key."""
+    return "test-openai-api-key"
 
 
 @pytest.fixture
-def test_model_name():
-    """Standard test model name."""
+def test_gemini_api_key():
+    """Standard test Gemini API key."""
+    return "test-gemini-api-key"
+
+
+@pytest.fixture
+def test_openai_model():
+    """Standard test OpenAI model name."""
+    return "gpt-4o-mini"
+
+
+@pytest.fixture
+def test_gemini_model():
+    """Standard test Gemini model name."""
     return "gemini-pro"
 
 
@@ -32,30 +45,71 @@ def test_port():
 
 # Settings fixtures
 @pytest.fixture
-def valid_settings():
-    """Create valid settings for testing."""
+def settings_with_openai_only(test_openai_api_key, test_openai_model, test_gemini_model, test_port):
+    """Create settings with only OpenAI configuration."""
     return EchoCattackleSettings(
-        gemini_api_key="test-api-key", gemini_model="gemini-pro", mcp_server_port=8001, log_level="INFO"
+        openai_api_key=test_openai_api_key,
+        openai_model=test_openai_model,
+        gemini_api_key=None,
+        gemini_model=test_gemini_model,
+        mcp_server_port=test_port,
+        log_level="INFO",
     )
 
 
 @pytest.fixture
-def settings_with_gemini(test_api_key, test_model_name, test_port):
-    """Create settings with Gemini configuration."""
+def settings_with_gemini_only(test_gemini_api_key, test_openai_model, test_gemini_model, test_port):
+    """Create settings with only Gemini configuration."""
     return EchoCattackleSettings(
-        gemini_api_key=test_api_key, gemini_model=test_model_name, mcp_server_port=test_port, log_level="INFO"
+        openai_api_key=None,
+        openai_model=test_openai_model,
+        gemini_api_key=test_gemini_api_key,
+        gemini_model=test_gemini_model,
+        mcp_server_port=test_port,
+        log_level="INFO",
     )
 
 
 @pytest.fixture
-def settings_without_gemini(test_model_name, test_port):
-    """Create settings without Gemini configuration."""
+def settings_with_both_apis(test_openai_api_key, test_gemini_api_key, test_openai_model, test_gemini_model, test_port):
+    """Create settings with both OpenAI and Gemini configuration."""
     return EchoCattackleSettings(
-        gemini_api_key="", gemini_model=test_model_name, mcp_server_port=test_port, log_level="INFO"
+        openai_api_key=test_openai_api_key,
+        openai_model=test_openai_model,
+        gemini_api_key=test_gemini_api_key,
+        gemini_model=test_gemini_model,
+        mcp_server_port=test_port,
+        log_level="INFO",
+    )
+
+
+@pytest.fixture
+def settings_without_apis(test_openai_model, test_gemini_model, test_port):
+    """Create settings without any AI API configuration."""
+    return EchoCattackleSettings(
+        openai_api_key=None,
+        openai_model=test_openai_model,
+        gemini_api_key=None,
+        gemini_model=test_gemini_model,
+        mcp_server_port=test_port,
+        log_level="INFO",
     )
 
 
 # Mock client fixtures
+@pytest.fixture
+def mock_openai_client():
+    """Create a mock OpenAI client for testing."""
+    mock_client = MagicMock(spec=OpenAIClient)
+
+    # Mock the async generate_content method
+    async def mock_generate_content(prompt):
+        return "This is a test OpenAI joke about the topic!"
+
+    mock_client.generate_content = mock_generate_content
+    return mock_client
+
+
 @pytest.fixture
 def mock_gemini_client():
     """Create a mock Gemini client for testing."""
@@ -63,7 +117,7 @@ def mock_gemini_client():
 
     # Mock the async generate_content method
     async def mock_generate_content(prompt):
-        return "This is a test joke about the topic!"
+        return "This is a test Gemini joke about the topic!"
 
     mock_client.generate_content = mock_generate_content
     return mock_client
@@ -71,15 +125,27 @@ def mock_gemini_client():
 
 # Cattackle instance fixtures
 @pytest.fixture
-def cattackle_with_gemini(mock_gemini_client):
-    """Create cattackle instance with mocked Gemini client."""
-    return EchoCattackle(gemini_client=mock_gemini_client)
+def cattackle_with_openai_only(mock_openai_client):
+    """Create cattackle instance with only OpenAI client."""
+    return EchoCattackle(openai_client=mock_openai_client, gemini_client=None)
 
 
 @pytest.fixture
-def cattackle_without_gemini():
-    """Create cattackle instance without Gemini client."""
-    return EchoCattackle(gemini_client=None)
+def cattackle_with_gemini_only(mock_gemini_client):
+    """Create cattackle instance with only Gemini client."""
+    return EchoCattackle(openai_client=None, gemini_client=mock_gemini_client)
+
+
+@pytest.fixture
+def cattackle_with_both_clients(mock_openai_client, mock_gemini_client):
+    """Create cattackle instance with both OpenAI and Gemini clients."""
+    return EchoCattackle(openai_client=mock_openai_client, gemini_client=mock_gemini_client)
+
+
+@pytest.fixture
+def cattackle_without_clients():
+    """Create cattackle instance without any AI clients."""
+    return EchoCattackle(openai_client=None, gemini_client=None)
 
 
 # Test data fixtures
