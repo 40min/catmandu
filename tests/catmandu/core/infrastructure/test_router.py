@@ -1,6 +1,6 @@
 """Tests for MessageRouter."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -89,9 +89,15 @@ def mock_chat_logger():
 
 
 @pytest.fixture
-def router(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger):
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
+
+@pytest.fixture
+def router(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_logging_service):
     """Create a MessageRouter with mocked dependencies."""
-    return MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger)
+    return MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_logging_service)
 
 
 @pytest.mark.asyncio
@@ -232,12 +238,14 @@ async def test_process_update_non_command_message(router, accumulator_manager):
 
 
 @pytest.mark.asyncio
-async def test_process_update_non_command_message_no_feedback(mock_mcp_service, mock_registry, mock_chat_logger):
+async def test_process_update_non_command_message_no_feedback(
+    mock_mcp_service, mock_registry, mock_chat_logger, mock_logging_service
+):
     """Test processing a non-command message when feedback is disabled."""
     # Create accumulator manager with feedback disabled
     accumulator = MessageAccumulator(max_messages_per_chat=100, max_message_length=1000)
     accumulator_manager = AccumulatorManager(accumulator, feedback_enabled=False)
-    router = MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger)
+    router = MessageRouter(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_logging_service)
 
     update = {"message": {"chat": {"id": 123}, "text": "regular message"}}
 

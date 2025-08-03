@@ -1,6 +1,5 @@
 import json
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -73,59 +72,6 @@ class TestCostTracker:
 
         # Test with zero tokens
         assert cost_tracker.calculate_gpt_cost(0, 0) == 0.0
-
-    def test_log_audio_processing_cost(self, cost_tracker, temp_cost_logs_dir):
-        """Test logging of audio processing costs."""
-        # Prepare test data
-        test_timestamp = datetime(2024, 1, 15, 10, 30, 45)
-        cost_data = {
-            "timestamp": test_timestamp,
-            "chat_id": 12345,
-            "user_info": {"username": "testuser", "first_name": "Test"},
-            "audio_duration": 2.5,
-            "whisper_cost": 0.015,
-            "gpt_tokens_input": 100,
-            "gpt_tokens_output": 50,
-            "gpt_cost": 0.045,
-            "total_cost": 0.060,
-            "file_size": 1024000,
-            "processing_time": 3.2,
-        }
-
-        # Log the cost data
-        cost_tracker.log_audio_processing_cost(cost_data)
-
-        # Verify log file was created
-        expected_log_file = Path(temp_cost_logs_dir) / "costs-2024-01-15.jsonl"
-        assert expected_log_file.exists()
-
-        # Verify log content
-        with open(expected_log_file, "r") as f:
-            log_line = f.readline().strip()
-            log_entry = json.loads(log_line)
-
-            assert log_entry["timestamp"] == "2024-01-15T10:30:45"
-            assert log_entry["chat_id"] == 12345
-            assert log_entry["user_info"] == {"username": "testuser", "first_name": "Test"}
-            assert log_entry["audio_duration_minutes"] == 2.5
-            assert log_entry["whisper_cost_usd"] == 0.015
-            assert log_entry["gpt_tokens_input"] == 100
-            assert log_entry["gpt_tokens_output"] == 50
-            assert log_entry["gpt_cost_usd"] == 0.045
-            assert log_entry["total_cost_usd"] == 0.060
-            assert log_entry["file_size_bytes"] == 1024000
-            assert log_entry["processing_time_seconds"] == 3.2
-
-    def test_log_audio_processing_cost_missing_fields(self, cost_tracker):
-        """Test that logging fails with missing required fields."""
-        incomplete_data = {
-            "timestamp": datetime.now(),
-            "chat_id": 12345,
-            # Missing other required fields
-        }
-
-        with pytest.raises(ValueError, match="Missing required field"):
-            cost_tracker.log_audio_processing_cost(incomplete_data)
 
     def test_get_daily_costs_no_data(self, cost_tracker):
         """Test getting daily costs when no data exists."""

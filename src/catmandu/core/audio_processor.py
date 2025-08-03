@@ -16,6 +16,7 @@ from catmandu.core.clients.telegram import TelegramClient
 from catmandu.core.config import Settings
 from catmandu.core.cost_tracker import CostTracker
 from catmandu.core.models import AudioFileInfo, TranscriptionResult
+from catmandu.core.services.logging_service import LoggingService
 
 logger = structlog.get_logger(__name__)
 
@@ -75,24 +76,31 @@ class AudioProcessor:
         "m4a": "audio/m4a",
     }
 
-    def __init__(self, settings: Settings, telegram_client: TelegramClient, cost_tracker: CostTracker):
+    def __init__(
+        self,
+        settings: Settings,
+        telegram_client: TelegramClient,
+        cost_tracker: CostTracker,
+        logging_service: LoggingService,
+    ):
         """Initialize the audio processor with required dependencies.
 
         Args:
             settings: Application settings containing audio processing configuration
             telegram_client: Telegram client for file operations
-            cost_tracker: Cost tracking service for logging expenses
+            cost_tracker: Cost tracking service for calculating expenses
+            logging_service: Centralized logging service for safe logging operations
         """
         self.settings = settings
         self.telegram_client = telegram_client
         self.cost_tracker = cost_tracker
+        self.logging_service = logging_service
         self._openai_client: Optional[OpenAIClient] = None
 
-        # Log configuration for debugging
         logger.info(
-            f"Audio processor initialized with limits: "
-            f"{self.settings.max_audio_file_size_mb}MB file size, "
-            f"{self.settings.max_audio_duration_minutes} minutes duration"
+            "Audio processor initialized",
+            max_file_size_mb=self.settings.max_audio_file_size_mb,
+            max_duration_minutes=self.settings.max_audio_duration_minutes,
         )
 
     async def _get_openai_client(self) -> OpenAIClient:
@@ -141,19 +149,8 @@ class AudioProcessor:
             file_size=audio_data.get("file_size"),
         )
 
-        # Enhanced logging with comprehensive audio metadata
-        logger.info(
-            "Audio file info extracted",
-            file_id=file_info.file_id,
-            file_unique_id=file_info.file_unique_id,
-            duration_seconds=file_info.duration,
-            duration_minutes=round(file_info.duration / 60, 2) if file_info.duration else None,
-            mime_type=file_info.mime_type,
-            file_size_bytes=file_info.file_size,
-            file_size_mb=round(file_info.file_size / (1024 * 1024), 2) if file_info.file_size else None,
-            message_type=message_type,
-            supported_format=file_info.mime_type in self.SUPPORTED_FORMATS if file_info.mime_type else None,
-        )
+        # Log audio file info extraction
+        self.logging_service.log_audio_file_info(file_info, message_type)
 
         return file_info, message_type
 
@@ -231,7 +228,7 @@ class AudioProcessor:
         download_start_time = time.time()
 
         try:
-            logger.info("Starting audio file download", file_id=file_id)
+            self.logging_service.log_audio_download_start(file_id)
 
             # Get file information from Telegram
             file_info = await self.telegram_client.get_file(file_id)
@@ -240,19 +237,9 @@ class AudioProcessor:
                 raise AudioDownloadError(f"Failed to get file info for file_id: {file_id}")
 
             file_path = file_info.get("file_path")
-            file_size = file_info.get("file_size")
-
             if not file_path:
-                logger.error("No file path in Telegram API response", file_id=file_id, file_info=file_info)
+                logger.error("No file path in Telegram API response", file_id=file_id)
                 raise AudioDownloadError(f"No file path returned for file_id: {file_id}")
-
-            logger.info(
-                "Telegram file info retrieved",
-                file_id=file_id,
-                file_path=file_path,
-                file_size_bytes=file_size,
-                file_size_mb=round(file_size / (1024 * 1024), 2) if file_size else None,
-            )
 
             # Download file content
             audio_data = await self.telegram_client.download_file(file_path)
@@ -261,21 +248,7 @@ class AudioProcessor:
                 raise AudioDownloadError(f"Failed to download file: {file_path}")
 
             download_time = time.time() - download_start_time
-            actual_size = len(audio_data)
-
-            logger.info(
-                "Audio file download completed",
-                file_id=file_id,
-                file_path=file_path,
-                download_time_seconds=round(download_time, 2),
-                actual_size_bytes=actual_size,
-                actual_size_mb=round(actual_size / (1024 * 1024), 2),
-                expected_size_bytes=file_size,
-                size_match=actual_size == file_size if file_size else None,
-                download_speed_mbps=(
-                    round((actual_size / (1024 * 1024)) / download_time, 2) if download_time > 0 else None
-                ),
-            )
+            self.logging_service.log_audio_download_complete(file_id, download_time, len(audio_data))
 
             return audio_data
 
@@ -309,12 +282,7 @@ class AudioProcessor:
         transcription_start_time = time.time()
 
         try:
-            logger.info(
-                "Starting audio transcription",
-                filename=filename,
-                audio_size_bytes=len(audio_data),
-                audio_size_mb=round(len(audio_data) / (1024 * 1024), 2),
-            )
+            self.logging_service.log_transcription_start(filename, len(audio_data))
 
             openai_client = await self._get_openai_client()
 
@@ -325,12 +293,7 @@ class AudioProcessor:
             # Extract transcription result
             text = response.get("text", "").strip()
             if not text:
-                logger.error(
-                    "Empty transcription result from Whisper API",
-                    filename=filename,
-                    response_keys=list(response.keys()),
-                    response_text_field=response.get("text"),
-                )
+                logger.error("Empty transcription result from Whisper API", filename=filename)
                 raise TranscriptionError("Empty transcription result")
 
             result = TranscriptionResult(
@@ -340,26 +303,7 @@ class AudioProcessor:
                 processing_time=processing_time,
             )
 
-            # Enhanced logging with comprehensive transcription metadata
-            logger.info(
-                "Audio transcription completed successfully",
-                filename=filename,
-                audio_size_bytes=len(audio_data),
-                audio_size_mb=round(len(audio_data) / (1024 * 1024), 2),
-                transcription_time_seconds=round(processing_time, 2),
-                detected_language=result.language,
-                text_length_chars=len(text),
-                text_length_words=len(text.split()) if text else 0,
-                text_preview=text[:100] + "..." if len(text) > 100 else text,
-                whisper_response_duration=response.get("duration"),
-                whisper_response_segments_count=len(response.get("segments", [])),
-                processing_speed_ratio=(
-                    round(response.get("duration", 0) / processing_time, 2)
-                    if processing_time > 0 and response.get("duration")
-                    else None
-                ),
-            )
-
+            self.logging_service.log_transcription_complete(result, processing_time)
             return result
 
         except Exception as e:
@@ -393,13 +337,6 @@ class AudioProcessor:
         improvement_start_time = time.time()
 
         try:
-            logger.info(
-                "Starting text improvement",
-                original_text_length=len(text),
-                original_word_count=len(text.split()),
-                original_text_preview=text[:100] + "..." if len(text) > 100 else text,
-            )
-
             openai_client = await self._get_openai_client()
 
             # Call GPT-4o-mini for text improvement
@@ -408,61 +345,21 @@ class AudioProcessor:
 
             improved_text = response.get("text", "").strip()
             usage_info = response.get("usage", {})
-            model_used = response.get("model", "gpt-4o-mini")
 
             if not improved_text:
                 # Fallback to original text if improvement fails
-                logger.warning(
-                    "Text improvement returned empty result, using original text",
-                    original_text_length=len(text),
-                    response_keys=list(response.keys()),
-                    improvement_time_seconds=round(improvement_time, 2),
-                )
+                logger.warning("Text improvement returned empty result, using original text")
                 improved_text = text
                 usage_info = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-            # Calculate text changes and improvements
-            text_length_change = len(improved_text) - len(text)
-            word_count_change = len(improved_text.split()) - len(text.split())
-
-            logger.info(
-                "Text improvement completed successfully",
-                model_used=model_used,
-                improvement_time_seconds=round(improvement_time, 2),
-                original_text_length=len(text),
-                improved_text_length=len(improved_text),
-                text_length_change=text_length_change,
-                original_word_count=len(text.split()),
-                improved_word_count=len(improved_text.split()),
-                word_count_change=word_count_change,
-                input_tokens=usage_info.get("prompt_tokens", 0),
-                output_tokens=usage_info.get("completion_tokens", 0),
-                total_tokens=usage_info.get("total_tokens", 0),
-                improved_text_preview=improved_text[:100] + "..." if len(improved_text) > 100 else improved_text,
-                tokens_per_second=(
-                    round(usage_info.get("total_tokens", 0) / improvement_time, 2) if improvement_time > 0 else None
-                ),
-            )
-
+            self.logging_service.log_text_improvement_complete(len(text), len(improved_text), improvement_time)
             return improved_text, usage_info
 
         except Exception as e:
             improvement_time = time.time() - improvement_start_time
-            logger.error(
-                "Text improvement failed",
-                original_text_length=len(text),
-                original_word_count=len(text.split()),
-                improvement_time_seconds=round(improvement_time, 2),
-                error=str(e),
-                error_type=type(e).__name__,
-                exc_info=True,
-            )
+            logger.error("Text improvement failed", error=str(e), error_type=type(e).__name__)
             # Return original text as fallback
-            logger.info(
-                "Using original transcription due to improvement failure",
-                fallback_text_length=len(text),
-                fallback_word_count=len(text.split()),
-            )
+            logger.info("Using original transcription due to improvement failure")
             return text, {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def _calculate_costs(self, audio_duration: float, token_usage: Dict) -> Dict:
@@ -594,17 +491,8 @@ class AudioProcessor:
             "last_name": message.get("from", {}).get("last_name"),
         }
 
-        # Enhanced logging for audio processing start
-        logger.info(
-            "Starting audio message processing",
-            chat_id=chat_id,
-            message_id=message_id,
-            user_id=user_info.get("user_id"),
-            username=user_info.get("username"),
-            audio_processing_enabled=self.settings.audio_processing_enabled,
-            max_file_size_mb=self.settings.max_audio_file_size_mb,
-            max_duration_minutes=self.settings.max_audio_duration_minutes,
-        )
+        # Log audio processing start
+        self.logging_service.log_audio_processing_start(chat_id, message_id, user_info)
 
         try:
             # Extract and validate audio file information
@@ -648,41 +536,16 @@ class AudioProcessor:
                 "transcription_time": transcription_result.processing_time,
             }
 
-            self.cost_tracker.log_audio_processing_cost(cost_data)
+            # CRITICAL: Use safe logging to prevent business logic interruption
+            self.logging_service.log_cost_data_safely(cost_data)
 
-            # Comprehensive success logging
-            logger.info(
-                "Audio processing completed successfully",
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_info.get("user_id"),
-                username=user_info.get("username"),
-                message_type=message_type,
-                file_id=file_info.file_id,
-                file_size_bytes=file_info.file_size or len(audio_data),
-                file_size_mb=round((file_info.file_size or len(audio_data)) / (1024 * 1024), 2),
-                audio_duration_seconds=file_info.duration,
-                audio_duration_minutes=round(file_info.duration / 60, 2) if file_info.duration else None,
-                mime_type=file_info.mime_type,
-                detected_language=transcription_result.language,
-                original_text_length=len(transcription_result.text),
-                improved_text_length=len(improved_text),
-                text_improvement_ratio=(
-                    round(len(improved_text) / len(transcription_result.text), 2) if transcription_result.text else None
-                ),
-                total_processing_time_seconds=round(processing_time, 2),
-                transcription_time_seconds=round(transcription_result.processing_time, 2),
-                whisper_cost_usd=costs["whisper_cost"],
-                gpt_cost_usd=costs["gpt_cost"],
-                total_cost_usd=costs["total_cost"],
-                input_tokens=costs["gpt_tokens_input"],
-                output_tokens=costs["gpt_tokens_output"],
-                cost_per_second=round(costs["total_cost"] / processing_time, 4) if processing_time > 0 else None,
-                processing_speed_ratio=(
-                    round(file_info.duration / processing_time, 2)
-                    if processing_time > 0 and file_info.duration
-                    else None
-                ),
+            # Log processing completion
+            self.logging_service.log_audio_processing_complete(
+                chat_id,
+                processing_time,
+                file_info.file_size or len(audio_data),
+                file_info.duration,
+                costs["total_cost"],
             )
 
             # Check for potentially low-quality transcriptions
@@ -700,23 +563,7 @@ class AudioProcessor:
 
         except Exception as e:
             processing_time = time.time() - start_time
-
-            # Enhanced error logging with comprehensive context
-            logger.error(
-                "Audio processing failed",
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_info.get("user_id"),
-                username=user_info.get("username"),
-                error=str(e),
-                error_type=type(e).__name__,
-                processing_time_seconds=round(processing_time, 2),
-                audio_processing_enabled=self.settings.audio_processing_enabled,
-                openai_api_key_configured=bool(self.settings.openai_api_key),
-                max_file_size_mb=self.settings.max_audio_file_size_mb,
-                max_duration_minutes=self.settings.max_audio_duration_minutes,
-                exc_info=True,
-            )
+            self.logging_service.log_audio_processing_error(chat_id, e, processing_time)
             raise
 
     async def close(self):

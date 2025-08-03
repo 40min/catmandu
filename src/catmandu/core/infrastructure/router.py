@@ -6,6 +6,7 @@ from catmandu.core.infrastructure.chat_logger import ChatLogger
 from catmandu.core.infrastructure.mcp_manager import McpService
 from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+from catmandu.core.services.logging_service import LoggingService
 
 
 class MessageRouter:
@@ -15,6 +16,7 @@ class MessageRouter:
         cattackle_registry: CattackleRegistry,
         accumulator_manager: AccumulatorManager,
         chat_logger: ChatLogger,
+        logging_service: LoggingService,
         audio_processor: AudioProcessor = None,
     ):
         self.log = structlog.get_logger(self.__class__.__name__)
@@ -22,6 +24,7 @@ class MessageRouter:
         self._registry = cattackle_registry
         self._accumulator_manager = accumulator_manager
         self._chat_logger = chat_logger
+        self._logging_service = logging_service
         self._audio_processor = audio_processor
 
     async def process_update(self, update: dict) -> tuple[int, str] | None:
@@ -76,8 +79,8 @@ class MessageRouter:
         if full_command in ["clear_accumulator", "show_accumulator", "accumulator_status"]:
             response_text = await self._process_system_command(chat_id, full_command)
 
-            # Log system command
-            self._chat_logger.log_message(
+            # Log system command safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="command",
                 text=text,
@@ -117,8 +120,8 @@ class MessageRouter:
             )
             response_text = f"Command not found: {full_command}"
 
-            # Log failed command
-            self._chat_logger.log_message(
+            # Log failed command safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="command",
                 text=text,
@@ -146,8 +149,8 @@ class MessageRouter:
 
             response_text = str(response.data)
 
-            # Log successful command
-            self._chat_logger.log_message(
+            # Log successful command safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="command",
                 text=text,
@@ -162,8 +165,8 @@ class MessageRouter:
             self.log.error("Cattackle execution failed", error=e)
             response_text = "An error occurred while executing the command."
 
-            # Log failed command execution
-            self._chat_logger.log_message(
+            # Log failed command execution safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="command",
                 text=text,
@@ -188,8 +191,10 @@ class MessageRouter:
         """
         self.log.debug("Processing non-command message for accumulation", chat_id=chat_id, text_length=len(text))
 
-        # Log the non-command message
-        self._chat_logger.log_message(chat_id=chat_id, message_type="message", text=text, user_info=user_info)
+        # Log the non-command message safely
+        self._logging_service.log_chat_interaction_safely(
+            chat_id=chat_id, message_type="message", text=text, user_info=user_info
+        )
 
         feedback = self._accumulator_manager.process_non_command_message(chat_id, text)
 
@@ -253,8 +258,8 @@ class MessageRouter:
                     }
                     break
 
-            # Log the audio message attempt
-            self._chat_logger.log_message(
+            # Log the audio message attempt safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="audio",
                 text="[Audio message - processing unavailable]",
@@ -293,8 +298,8 @@ class MessageRouter:
                         }
                         break
 
-                # Log failed audio processing
-                self._chat_logger.log_message(
+                # Log failed audio processing safely
+                self._logging_service.log_chat_interaction_safely(
                     chat_id=chat_id,
                     message_type="audio",
                     text="[Audio message - processing failed]",
@@ -334,8 +339,8 @@ class MessageRouter:
                             }
                             break
 
-                    # Log the successful audio processing
-                    self._chat_logger.log_message(
+                    # Log the successful audio processing safely
+                    self._logging_service.log_chat_interaction_safely(
                         chat_id=chat_id,
                         message_type="audio",
                         text=f"[Audio transcribed]: {transcribed_text}",
@@ -349,20 +354,8 @@ class MessageRouter:
                 return result
 
         except AudioProcessingError as e:
-            # Enhanced error logging with detailed context
-            self.log.error(
-                "Audio processing failed with AudioProcessingError",
-                chat_id=chat_id,
-                message_id=message.get("message_id"),
-                user_id=user_info.get("id"),
-                username=user_info.get("username"),
-                error=str(e),
-                error_type=type(e).__name__,
-                audio_processor_available=bool(self._audio_processor),
-                message_keys=list(message.keys()),
-                audio_message_types=[key for key in ["voice", "audio", "video_note"] if key in message],
-                exc_info=True,
-            )
+            # Log audio processing error
+            self.log.error("Audio processing failed", chat_id=chat_id, error=str(e), error_type=type(e).__name__)
 
             # Provide user-friendly error messages based on error type
             error_message = str(e)
@@ -383,8 +376,8 @@ class MessageRouter:
                     "Sorry, I couldn't process the audio message. Please try again later or send a text message."
                 )
 
-            # Enhanced chat logging with error details
-            self._chat_logger.log_message(
+            # Log audio processing error safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="audio",
                 text=f"[Audio processing error - {type(e).__name__}]: {error_message}",
@@ -395,24 +388,14 @@ class MessageRouter:
             return chat_id, response_text
 
         except Exception as e:
-            # Enhanced unexpected error logging
+            # Log unexpected error
             self.log.error(
-                "Unexpected error processing audio message",
-                chat_id=chat_id,
-                message_id=message.get("message_id"),
-                user_id=user_info.get("id"),
-                username=user_info.get("username"),
-                error=str(e),
-                error_type=type(e).__name__,
-                audio_processor_available=bool(self._audio_processor),
-                message_keys=list(message.keys()),
-                audio_message_types=[key for key in ["voice", "audio", "video_note"] if key in message],
-                exc_info=True,
+                "Unexpected error processing audio message", chat_id=chat_id, error=str(e), error_type=type(e).__name__
             )
             response_text = "Sorry, an unexpected error occurred while processing your audio message. Please try again."
 
-            # Enhanced chat logging for unexpected errors
-            self._chat_logger.log_message(
+            # Log unexpected audio processing error safely
+            self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
                 message_type="audio",
                 text=f"[Audio processing unexpected error - {type(e).__name__}]: {str(e)}",

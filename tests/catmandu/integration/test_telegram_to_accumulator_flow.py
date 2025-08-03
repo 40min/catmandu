@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -10,6 +10,13 @@ from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.models import CattackleResponse
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+
+
+@pytest.fixture
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -64,6 +71,7 @@ def integration_poller(
         cattackle_registry=test_registry_with_cattackles,
         accumulator_manager=real_accumulator_manager,
         chat_logger=mock_chat_logger,
+        logging_service=mock_logging_service,
     )
 
     return TelegramPoller(

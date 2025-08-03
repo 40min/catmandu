@@ -1,6 +1,6 @@
 """Integration tests for audio processing functionality."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -9,6 +9,12 @@ from catmandu.core.config import Settings
 from catmandu.core.cost_tracker import CostTracker
 from catmandu.core.infrastructure.chat_logger import ChatLogger
 from catmandu.core.infrastructure.router import MessageRouter
+
+
+@pytest.fixture
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
 
 
 @pytest.fixture
@@ -65,11 +71,17 @@ def integration_router(audio_settings, mock_telegram_client, mock_openai_client,
     cost_tracker = CostTracker(settings=audio_settings)
     chat_logger = ChatLogger(logs_dir=str(chat_logs_dir))
 
+    # Create logging service
+    from catmandu.core.services.logging_service import LoggingService
+
+    logging_service = LoggingService(audio_settings)
+
     # Create audio processor with mocked OpenAI client
     audio_processor = AudioProcessor(
         settings=audio_settings,
         telegram_client=mock_telegram_client,
         cost_tracker=cost_tracker,
+        logging_service=logging_service,
     )
 
     # Mock the OpenAI client creation
@@ -87,6 +99,7 @@ def integration_router(audio_settings, mock_telegram_client, mock_openai_client,
             accumulator_manager=mock_accumulator_manager,
             chat_logger=chat_logger,
             audio_processor=audio_processor,
+            logging_service=mock_logging_service,
         )
 
         yield router, mock_mcp_service, mock_registry, mock_accumulator_manager

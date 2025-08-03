@@ -1,9 +1,16 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
 from catmandu.core.models import CattackleResponse
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+
+
+@pytest.fixture
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -64,6 +71,7 @@ def app_test_with_mocks(
         cattackle_registry=test_registry_with_cattackles,
         accumulator_manager=mock_accumulator_manager,
         chat_logger=mock_chat_logger,
+        logging_service=mock_logging_service,
     )
     poller = TelegramPoller(router=message_router, telegram_client=mock_telegram_service, settings=settings)
 

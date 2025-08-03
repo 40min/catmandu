@@ -17,6 +17,7 @@ from catmandu.core.infrastructure.registry import CattackleRegistry
 from catmandu.core.infrastructure.router import MessageRouter
 from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
+from catmandu.core.services.logging_service import LoggingService
 from catmandu.logging import configure_logging
 
 log = structlog.get_logger()
@@ -48,8 +49,9 @@ async def lifespan(app: FastAPI):
     )
     accumulator_manager = AccumulatorManager(accumulator=message_accumulator, feedback_enabled=False)
 
-    # Initialize chat logger
+    # Initialize chat logger and logging service
     chat_logger = ChatLogger(logs_dir=settings.chat_logs_dir)
+    logging_service = LoggingService(settings=settings)
 
     # Initialize audio processing components if enabled
     audio_processor = None
@@ -62,6 +64,7 @@ async def lifespan(app: FastAPI):
                 settings=settings,
                 telegram_client=telegram_client,
                 cost_tracker=cost_tracker,
+                logging_service=logging_service,
             )
             log.info("Audio processor initialized successfully")
         except Exception as e:
@@ -72,12 +75,13 @@ async def lifespan(app: FastAPI):
     else:
         log.info(settings.get_audio_processing_status_message())
 
-    # Initialize router with accumulator manager, chat logger, and optional audio processor
+    # Initialize router with accumulator manager, chat logger, logging service, and optional audio processor
     message_router = MessageRouter(
         mcp_service=mcp_service,
         cattackle_registry=cattackle_registry,
         accumulator_manager=accumulator_manager,
         chat_logger=chat_logger,
+        logging_service=logging_service,
         audio_processor=audio_processor,
     )
     poller = TelegramPoller(router=message_router, telegram_client=telegram_client, settings=settings)
@@ -88,6 +92,7 @@ async def lifespan(app: FastAPI):
     app.state.message_accumulator = message_accumulator
     app.state.accumulator_manager = accumulator_manager
     app.state.chat_logger = chat_logger
+    app.state.logging_service = logging_service
     app.state.message_router = message_router
     app.state.telegram_client = telegram_client
     app.state.poller = poller

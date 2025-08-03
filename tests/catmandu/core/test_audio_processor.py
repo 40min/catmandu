@@ -2,7 +2,7 @@
 Unit tests for the audio processing core module.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -60,9 +60,15 @@ def mock_cost_tracker():
 
 
 @pytest.fixture
-def audio_processor(settings, mock_telegram_client, mock_cost_tracker):
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
+
+@pytest.fixture
+def audio_processor(settings, mock_telegram_client, mock_cost_tracker, mock_logging_service):
     """Create audio processor instance."""
-    return AudioProcessor(settings, mock_telegram_client, mock_cost_tracker)
+    return AudioProcessor(settings, mock_telegram_client, mock_cost_tracker, mock_logging_service)
 
 
 @pytest.fixture
@@ -120,19 +126,21 @@ def sample_audio_message():
 class TestAudioProcessorInitialization:
     """Test audio processor initialization and configuration."""
 
-    def test_init_with_valid_settings(self, settings, mock_telegram_client, mock_cost_tracker):
+    def test_init_with_valid_settings(self, settings, mock_telegram_client, mock_cost_tracker, mock_logging_service):
         """Test successful initialization with valid settings."""
-        processor = AudioProcessor(settings, mock_telegram_client, mock_cost_tracker)
+        processor = AudioProcessor(settings, mock_telegram_client, mock_cost_tracker, mock_logging_service)
         assert processor.settings == settings
         assert processor.telegram_client == mock_telegram_client
         assert processor.cost_tracker == mock_cost_tracker
 
-    def test_init_with_disabled_audio_processing(self, disabled_settings, mock_telegram_client, mock_cost_tracker):
+    def test_init_with_disabled_audio_processing(
+        self, disabled_settings, mock_telegram_client, mock_cost_tracker, mock_logging_service
+    ):
         """Test initialization with audio processing disabled."""
-        processor = AudioProcessor(disabled_settings, mock_telegram_client, mock_cost_tracker)
+        processor = AudioProcessor(disabled_settings, mock_telegram_client, mock_cost_tracker, mock_logging_service)
         assert processor.settings == disabled_settings
 
-    def test_init_without_openai_key_when_enabled(self, mock_telegram_client, mock_cost_tracker):
+    def test_init_without_openai_key_when_enabled(self, mock_telegram_client, mock_cost_tracker, mock_logging_service):
         """Test initialization succeeds even without OpenAI key (validation happens at Settings level)."""
         settings = Settings(
             telegram_bot_token="test_token",
@@ -140,7 +148,7 @@ class TestAudioProcessorInitialization:
             openai_api_key=None,
         )
         # AudioProcessor should initialize successfully - validation is handled by Settings
-        processor = AudioProcessor(settings, mock_telegram_client, mock_cost_tracker)
+        processor = AudioProcessor(settings, mock_telegram_client, mock_cost_tracker, mock_logging_service)
         assert processor.settings == settings
 
 
@@ -456,15 +464,17 @@ class TestFullAudioProcessing:
     """Test complete audio processing workflow."""
 
     @pytest.mark.asyncio
-    async def test_process_audio_message_disabled(self, disabled_settings, mock_telegram_client, mock_cost_tracker):
+    async def test_process_audio_message_disabled(
+        self, disabled_settings, mock_telegram_client, mock_cost_tracker, mock_logging_service
+    ):
         """Test processing fails when audio processing is disabled."""
-        processor = AudioProcessor(disabled_settings, mock_telegram_client, mock_cost_tracker)
+        processor = AudioProcessor(disabled_settings, mock_telegram_client, mock_cost_tracker, mock_logging_service)
 
         with pytest.raises(AudioProcessingError, match="Audio processing is disabled"):
             await processor.process_audio_message({})
 
     @pytest.mark.asyncio
-    async def test_process_audio_message_success(self, audio_processor, sample_voice_message, mock_cost_tracker):
+    async def test_process_audio_message_success(self, audio_processor, sample_voice_message, mock_logging_service):
         """Test successful complete audio processing workflow."""
         # Mock all the async methods
         with (
@@ -484,7 +494,8 @@ class TestFullAudioProcessing:
             result = await audio_processor.process_audio_message(sample_voice_message)
 
             assert result == "Improved transcription"
-            mock_cost_tracker.log_audio_processing_cost.assert_called_once()
+            # Verify that safe cost logging was called
+            mock_logging_service.log_cost_data_safely.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_audio_message_validation_error(self, audio_processor):

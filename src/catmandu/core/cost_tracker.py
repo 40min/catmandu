@@ -11,7 +11,7 @@ logger = structlog.get_logger(__name__)
 
 
 class CostTracker:
-    """Handles cost tracking and logging for audio processing operations."""
+    """Handles cost tracking and calculation for audio processing operations."""
 
     def __init__(self, settings: Settings):
         """Initialize the cost tracker with configuration settings.
@@ -25,7 +25,10 @@ class CostTracker:
 
     def _ensure_logs_directory(self) -> None:
         """Ensure the cost logs directory exists."""
-        self.cost_logs_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.cost_logs_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.warning("Failed to create cost logs directory", error=str(e))
 
     def calculate_whisper_cost(self, duration_minutes: float) -> float:
         """Calculate Whisper API cost based on audio duration.
@@ -51,133 +54,6 @@ class CostTracker:
         input_cost = (input_tokens / 1_000_000) * self.settings.gpt4o_mini_input_cost_per_1m_tokens
         output_cost = (output_tokens / 1_000_000) * self.settings.gpt4o_mini_output_cost_per_1m_tokens
         return input_cost + output_cost
-
-    def log_audio_processing_cost(self, cost_data: Dict) -> None:
-        """Log cost information for audio processing.
-
-        Args:
-            cost_data: Dictionary containing cost and processing information
-                Expected keys:
-                - timestamp: datetime object
-                - chat_id: int
-                - user_info: dict with user information
-                - audio_duration: float (in minutes)
-                - whisper_cost: float
-                - gpt_tokens_input: int
-                - gpt_tokens_output: int
-                - gpt_cost: float
-                - total_cost: float
-                - file_size: int (in bytes)
-                - processing_time: float (in seconds)
-        """
-        try:
-            # Validate required fields
-            required_fields = [
-                "timestamp",
-                "chat_id",
-                "user_info",
-                "audio_duration",
-                "whisper_cost",
-                "gpt_tokens_input",
-                "gpt_tokens_output",
-                "gpt_cost",
-                "total_cost",
-                "file_size",
-                "processing_time",
-            ]
-
-            for field in required_fields:
-                if field not in cost_data:
-                    raise ValueError(f"Missing required field: {field}")
-
-            # Prepare enhanced log entry with additional metadata
-            log_entry = {
-                "timestamp": cost_data["timestamp"].isoformat(),
-                "chat_id": cost_data["chat_id"],
-                "message_id": cost_data.get("message_id"),
-                "user_info": cost_data["user_info"],
-                "audio_duration_minutes": cost_data["audio_duration"],
-                "audio_duration_seconds": cost_data["audio_duration"] * 60,
-                "whisper_cost_usd": cost_data["whisper_cost"],
-                "gpt_tokens_input": cost_data["gpt_tokens_input"],
-                "gpt_tokens_output": cost_data["gpt_tokens_output"],
-                "gpt_total_tokens": cost_data["gpt_tokens_input"] + cost_data["gpt_tokens_output"],
-                "gpt_cost_usd": cost_data["gpt_cost"],
-                "total_cost_usd": cost_data["total_cost"],
-                "file_size_bytes": cost_data["file_size"],
-                "file_size_mb": round(cost_data["file_size"] / (1024 * 1024), 3),
-                "processing_time_seconds": cost_data["processing_time"],
-                "message_type": cost_data.get("message_type"),
-                "mime_type": cost_data.get("mime_type"),
-                "transcription_language": cost_data.get("transcription_language"),
-                "original_text_length": cost_data.get("original_text_length"),
-                "improved_text_length": cost_data.get("improved_text_length"),
-                "transcription_time_seconds": cost_data.get("transcription_time"),
-                "cost_per_minute": (
-                    round(cost_data["total_cost"] / cost_data["audio_duration"], 4)
-                    if cost_data["audio_duration"] > 0
-                    else 0
-                ),
-                "cost_per_mb": (
-                    round(cost_data["total_cost"] / (cost_data["file_size"] / (1024 * 1024)), 4)
-                    if cost_data["file_size"] > 0
-                    else 0
-                ),
-                "processing_speed_ratio": (
-                    round((cost_data["audio_duration"] * 60) / cost_data["processing_time"], 2)
-                    if cost_data["processing_time"] > 0
-                    else None
-                ),
-            }
-
-            # Write to daily log file
-            log_date = cost_data["timestamp"].date()
-            log_file = self.cost_logs_dir / f"costs-{log_date.isoformat()}.jsonl"
-
-            with open(log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-
-            # Enhanced structured logging for monitoring
-            logger.info(
-                "Audio processing cost logged successfully",
-                log_file=str(log_file),
-                chat_id=cost_data["chat_id"],
-                message_id=cost_data.get("message_id"),
-                user_id=cost_data["user_info"].get("user_id"),
-                username=cost_data["user_info"].get("username"),
-                message_type=cost_data.get("message_type"),
-                audio_duration_minutes=cost_data["audio_duration"],
-                file_size_mb=round(cost_data["file_size"] / (1024 * 1024), 2),
-                mime_type=cost_data.get("mime_type"),
-                transcription_language=cost_data.get("transcription_language"),
-                whisper_cost_usd=cost_data["whisper_cost"],
-                gpt_cost_usd=cost_data["gpt_cost"],
-                total_cost_usd=cost_data["total_cost"],
-                gpt_tokens_total=cost_data["gpt_tokens_input"] + cost_data["gpt_tokens_output"],
-                processing_time_seconds=cost_data["processing_time"],
-                cost_per_minute=(
-                    round(cost_data["total_cost"] / cost_data["audio_duration"], 4)
-                    if cost_data["audio_duration"] > 0
-                    else 0
-                ),
-                processing_speed_ratio=(
-                    round((cost_data["audio_duration"] * 60) / cost_data["processing_time"], 2)
-                    if cost_data["processing_time"] > 0
-                    else None
-                ),
-            )
-
-        except Exception as e:
-            logger.error(
-                "Failed to log audio processing cost",
-                error=str(e),
-                error_type=type(e).__name__,
-                chat_id=cost_data.get("chat_id"),
-                user_id=cost_data.get("user_info", {}).get("user_id"),
-                timestamp=cost_data.get("timestamp"),
-                exc_info=True,
-            )
-            raise
 
     def get_daily_costs(self, target_date: str) -> Dict:
         """Get aggregated costs for a specific date.

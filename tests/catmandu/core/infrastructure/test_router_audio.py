@@ -1,6 +1,6 @@
 """Tests for MessageRouter audio processing functionality."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -94,20 +94,34 @@ def mock_audio_processor():
 
 
 @pytest.fixture
-def router_with_audio(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_audio_processor):
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
+
+@pytest.fixture
+def router_with_audio(
+    mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_logging_service, mock_audio_processor
+):
     """Create a router with audio processing enabled."""
     return MessageRouter(
         mcp_service=mock_mcp_service,
         cattackle_registry=mock_registry,
         accumulator_manager=accumulator_manager,
         chat_logger=mock_chat_logger,
+        logging_service=mock_logging_service,
         audio_processor=mock_audio_processor,
     )
 
 
 @pytest.fixture
 def router_with_audio_no_feedback(
-    mock_mcp_service, mock_registry, accumulator_manager_no_feedback, mock_chat_logger, mock_audio_processor
+    mock_mcp_service,
+    mock_registry,
+    accumulator_manager_no_feedback,
+    mock_chat_logger,
+    mock_logging_service,
+    mock_audio_processor,
 ):
     """Create a router with audio processing enabled and no accumulator feedback."""
     return MessageRouter(
@@ -115,24 +129,26 @@ def router_with_audio_no_feedback(
         cattackle_registry=mock_registry,
         accumulator_manager=accumulator_manager_no_feedback,
         chat_logger=mock_chat_logger,
+        logging_service=mock_logging_service,
         audio_processor=mock_audio_processor,
     )
 
 
 @pytest.fixture
-def router_no_audio(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger):
+def router_no_audio(mock_mcp_service, mock_registry, accumulator_manager, mock_chat_logger, mock_logging_service):
     """Create a router without audio processing."""
     return MessageRouter(
         mcp_service=mock_mcp_service,
         cattackle_registry=mock_registry,
         accumulator_manager=accumulator_manager,
         chat_logger=mock_chat_logger,
+        logging_service=mock_logging_service,
         audio_processor=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_process_audio_message_voice_success(router_with_audio, mock_audio_processor, mock_chat_logger):
+async def test_process_audio_message_voice_success(router_with_audio, mock_audio_processor, mock_logging_service):
     """Test successful processing of voice message."""
     update = {
         "message": {
@@ -162,9 +178,9 @@ async def test_process_audio_message_voice_success(router_with_audio, mock_audio
     # Verify chat action was sent
     mock_audio_processor.telegram_client.send_chat_action.assert_called_once_with(123, "typing")
 
-    # Verify logging
-    mock_chat_logger.log_message.assert_called_once()
-    call_args = mock_chat_logger.log_message.call_args[1]
+    # Verify safe logging was called
+    mock_logging_service.log_chat_interaction_safely.assert_called_once()
+    call_args = mock_logging_service.log_chat_interaction_safely.call_args[1]
     assert call_args["chat_id"] == 123
     assert call_args["message_type"] == "message"  # Logged as regular message after transcription
     assert call_args["text"] == "Hello world"
@@ -172,7 +188,7 @@ async def test_process_audio_message_voice_success(router_with_audio, mock_audio
 
 @pytest.mark.asyncio
 async def test_process_audio_message_no_feedback_confirmation(
-    router_with_audio_no_feedback, mock_audio_processor, mock_chat_logger
+    router_with_audio_no_feedback, mock_audio_processor, mock_logging_service
 ):
     """Test audio processing with no accumulator feedback returns confirmation message."""
     update = {
@@ -200,17 +216,17 @@ async def test_process_audio_message_no_feedback_confirmation(
     # Verify audio processor was called
     mock_audio_processor.process_audio_message.assert_called_once_with(update)
 
-    # Verify logging - should be called twice (once for message, once for audio confirmation)
-    assert mock_chat_logger.log_message.call_count == 2
+    # Verify safe logging - should be called twice (once for message, once for audio confirmation)
+    assert mock_logging_service.log_chat_interaction_safely.call_count == 2
 
     # Check the first call (regular message processing)
-    first_call_args = mock_chat_logger.log_message.call_args_list[0][1]
+    first_call_args = mock_logging_service.log_chat_interaction_safely.call_args_list[0][1]
     assert first_call_args["chat_id"] == 123
     assert first_call_args["message_type"] == "message"
     assert first_call_args["text"] == "Hello world"
 
     # Check the second call (audio confirmation)
-    second_call_args = mock_chat_logger.log_message.call_args_list[1][1]
+    second_call_args = mock_logging_service.log_chat_interaction_safely.call_args_list[1][1]
     assert second_call_args["chat_id"] == 123
     assert second_call_args["message_type"] == "audio"
     assert "[Audio transcribed]: Hello world" in second_call_args["text"]
@@ -306,7 +322,7 @@ async def test_process_audio_message_command_transcription(
 
 
 @pytest.mark.asyncio
-async def test_process_audio_message_no_processor(router_no_audio, mock_chat_logger):
+async def test_process_audio_message_no_processor(router_no_audio, mock_logging_service):
     """Test audio message when no audio processor is available."""
     update = {
         "message": {
@@ -328,15 +344,15 @@ async def test_process_audio_message_no_processor(router_no_audio, mock_chat_log
     assert chat_id == 123
     assert response == "Sorry, audio processing is not available at the moment."
 
-    # Verify logging
-    mock_chat_logger.log_message.assert_called_once()
-    call_args = mock_chat_logger.log_message.call_args[1]
+    # Verify safe logging
+    mock_logging_service.log_chat_interaction_safely.assert_called_once()
+    call_args = mock_logging_service.log_chat_interaction_safely.call_args[1]
     assert call_args["message_type"] == "audio"
     assert "processing unavailable" in call_args["text"]
 
 
 @pytest.mark.asyncio
-async def test_process_audio_message_processing_error(router_with_audio, mock_audio_processor, mock_chat_logger):
+async def test_process_audio_message_processing_error(router_with_audio, mock_audio_processor, mock_logging_service):
     """Test handling of audio processing errors."""
     # Mock processor to raise an error
     mock_audio_processor.process_audio_message.side_effect = AudioProcessingError("File too large")
@@ -361,9 +377,9 @@ async def test_process_audio_message_processing_error(router_with_audio, mock_au
     assert chat_id == 123
     assert "too large" in response
 
-    # Verify error logging
-    mock_chat_logger.log_message.assert_called_once()
-    call_args = mock_chat_logger.log_message.call_args[1]
+    # Verify safe error logging
+    mock_logging_service.log_chat_interaction_safely.assert_called_once()
+    call_args = mock_logging_service.log_chat_interaction_safely.call_args[1]
     assert call_args["message_type"] == "audio"
     assert "Audio processing error" in call_args["text"]
 
@@ -399,7 +415,7 @@ async def test_process_audio_message_different_error_types(router_with_audio, mo
 
 
 @pytest.mark.asyncio
-async def test_process_audio_message_unexpected_error(router_with_audio, mock_audio_processor, mock_chat_logger):
+async def test_process_audio_message_unexpected_error(router_with_audio, mock_audio_processor, mock_logging_service):
     """Test handling of unexpected errors during audio processing."""
     # Mock processor to raise an unexpected error
     mock_audio_processor.process_audio_message.side_effect = Exception("Unexpected error")
@@ -424,15 +440,15 @@ async def test_process_audio_message_unexpected_error(router_with_audio, mock_au
     assert chat_id == 123
     assert "unexpected error occurred" in response
 
-    # Verify error logging
-    mock_chat_logger.log_message.assert_called_once()
-    call_args = mock_chat_logger.log_message.call_args[1]
+    # Verify safe error logging
+    mock_logging_service.log_chat_interaction_safely.assert_called_once()
+    call_args = mock_logging_service.log_chat_interaction_safely.call_args[1]
     assert call_args["message_type"] == "audio"
     assert "unexpected error" in call_args["text"]
 
 
 @pytest.mark.asyncio
-async def test_process_audio_message_empty_transcription(router_with_audio, mock_audio_processor, mock_chat_logger):
+async def test_process_audio_message_empty_transcription(router_with_audio, mock_audio_processor, mock_logging_service):
     """Test handling when audio processing returns empty transcription."""
     # Mock processor to return None/empty
     mock_audio_processor.process_audio_message.return_value = None
@@ -457,9 +473,9 @@ async def test_process_audio_message_empty_transcription(router_with_audio, mock
     assert chat_id == 123
     assert "couldn't process the audio message" in response
 
-    # Verify logging
-    mock_chat_logger.log_message.assert_called_once()
-    call_args = mock_chat_logger.log_message.call_args[1]
+    # Verify safe logging
+    mock_logging_service.log_chat_interaction_safely.assert_called_once()
+    call_args = mock_logging_service.log_chat_interaction_safely.call_args[1]
     assert call_args["message_type"] == "audio"
     assert "processing failed" in call_args["text"]
 

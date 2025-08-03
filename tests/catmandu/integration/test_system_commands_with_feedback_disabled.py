@@ -17,6 +17,12 @@ from catmandu.core.services.accumulator import MessageAccumulator
 from catmandu.core.services.accumulator_manager import AccumulatorManager
 
 
+@pytest.fixture
+def mock_logging_service():
+    """Create mock logging service."""
+    return Mock()
+
+
 class TestSystemCommandsWithFeedbackDisabled:
     """Test system commands work when feedback is disabled for non-command messages."""
 
@@ -40,6 +46,7 @@ class TestSystemCommandsWithFeedbackDisabled:
             cattackle_registry=mock_registry,
             accumulator_manager=accumulator_manager_feedback_disabled,
             chat_logger=mock_chat_logger,
+            logging_service=mock_logging_service,
         )
 
     @pytest.mark.asyncio
