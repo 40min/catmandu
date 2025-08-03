@@ -63,7 +63,10 @@ services:
       target: production
     container_name: echo-cattackle
     environment:
-      # Optional Gemini API configuration
+      # OpenAI API configuration (primary)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      # Gemini API configuration (fallback)
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash-lite-preview-06-17}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
