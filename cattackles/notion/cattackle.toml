@@ -1,0 +1,24 @@
+[cattackle]
+name = "notion"
+version = "1.0.0"
+description = "Save Telegram messages to Notion pages organized by date"
+author = "Catmandu Team"
+
+[cattackle.commands]
+to_notion = { description = "Save message content to a daily Notion page", usage = "/to_notion [message content]" }
+
+[cattackle.transport]
+type = "stdio"
+command = "python"
+args = ["src/server.py"]
+cwd = "."
+
+[cattackle.environment]
+# Environment variables that should be available to the cattackle
+# These will be inherited from the core system environment
+required = []
+optional = []
+
+[cattackle.dependencies]
+# System dependencies required for this cattackle
+python = ">=3.12"

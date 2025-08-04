@@ -1,0 +1,10 @@
+# Testing framework
+pytest==8.2.2
+pytest-asyncio==0.23.7
+pytest-cov==5.0.0
+
+# Test utilities
+pytest-mock==3.14.0
+
+# Include main requirements
+-r requirements.txt
