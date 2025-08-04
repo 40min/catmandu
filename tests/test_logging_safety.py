@@ -17,7 +17,9 @@ from catmandu.core.services.logging_service import LoggingService
 @pytest.fixture
 def mock_logging_service():
     """Create mock logging service."""
-    return Mock()
+    mock = Mock()
+    mock.log_chat_interaction_safely = Mock()
+    return mock
 
 
 class TestLoggingSafety:

@@ -14,7 +14,9 @@ from catmandu.core.infrastructure.router import MessageRouter
 @pytest.fixture
 def mock_logging_service():
     """Create mock logging service."""
-    return Mock()
+    mock = Mock()
+    mock.log_chat_interaction_safely = Mock()
+    return mock
 
 
 @pytest.fixture
@@ -99,7 +101,7 @@ def integration_router(audio_settings, mock_telegram_client, mock_openai_client,
             accumulator_manager=mock_accumulator_manager,
             chat_logger=chat_logger,
             audio_processor=audio_processor,
-            logging_service=mock_logging_service,
+            logging_service=logging_service,
         )
 
         yield router, mock_mcp_service, mock_registry, mock_accumulator_manager

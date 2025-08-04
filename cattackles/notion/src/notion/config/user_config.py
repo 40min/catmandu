@@ -6,17 +6,17 @@ through a simple dictionary mapping usernames to their Notion tokens and paths.
 
 from typing import Dict, Optional
 
-# User configuration mapping: username -> {token, path}
-# Each user needs a Notion integration token and a target page/database ID
+# User configuration mapping: username -> {token, parent_page_id}
+# Each user needs a Notion integration token and a target parent page/database ID
 USER_CONFIGS: Dict[str, Dict[str, str]] = {
     # Example configuration (replace with actual user configurations):
     # "username1": {
     #     "token": "secret_notion_integration_token_1",
-    #     "path": "page_id_or_database_id_1"
+    #     "parent_page_id": "page_id_or_database_id_1"
     # },
     # "username2": {
     #     "token": "secret_notion_integration_token_2",
-    #     "path": "page_id_or_database_id_2"
+    #     "parent_page_id": "page_id_or_database_id_2"
     # }
 }
 
@@ -28,7 +28,7 @@ def get_user_config(username: str) -> Optional[Dict[str, str]]:
         username: The username to look up
 
     Returns:
-        Dictionary containing 'token' and 'path' keys if user exists,
+        Dictionary containing 'token' and 'parent_page_id' keys if user exists,
         None if user is not configured
     """
     if not username:
@@ -53,8 +53,8 @@ def is_user_authorized(username: str) -> bool:
     if not config:
         return False
 
-    # Validate that both token and path are present and non-empty
+    # Validate that both token and parent_page_id are present and non-empty
     token = config.get("token", "").strip()
-    path = config.get("path", "").strip()
+    parent_page_id = config.get("parent_page_id", "").strip()
 
-    return bool(token and path)
+    return bool(token and parent_page_id)

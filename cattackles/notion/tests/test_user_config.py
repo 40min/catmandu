@@ -10,14 +10,14 @@ class TestGetUserConfig:
 
     def test_get_existing_user_config(self):
         """Test getting configuration for an existing user."""
-        test_configs = {"testuser": {"token": "test_token_123", "path": "test_page_id_456"}}
+        test_configs = {"testuser": {"token": "test_token_123", "parent_page_id": "test_page_id_456"}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             config = get_user_config("testuser")
 
             assert config is not None
             assert config["token"] == "test_token_123"
-            assert config["path"] == "test_page_id_456"
+            assert config["parent_page_id"] == "test_page_id_456"
 
     def test_get_nonexistent_user_config(self):
         """Test getting configuration for a user that doesn't exist."""
@@ -45,8 +45,8 @@ class TestIsUserAuthorized:
     """Tests for is_user_authorized function."""
 
     def test_authorized_user_with_valid_config(self):
-        """Test that user with valid token and path is authorized."""
-        test_configs = {"validuser": {"token": "valid_token_123", "path": "valid_page_id_456"}}
+        """Test that user with valid token and parent_page_id is authorized."""
+        test_configs = {"validuser": {"token": "valid_token_123", "parent_page_id": "valid_page_id_456"}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             assert is_user_authorized("validuser") is True
@@ -60,7 +60,7 @@ class TestIsUserAuthorized:
         """Test that user with missing token is not authorized."""
         test_configs = {
             "incomplete_user": {
-                "path": "valid_page_id_456"
+                "parent_page_id": "valid_page_id_456"
                 # Missing token
             }
         }
@@ -68,12 +68,12 @@ class TestIsUserAuthorized:
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             assert is_user_authorized("incomplete_user") is False
 
-    def test_unauthorized_user_missing_path(self):
-        """Test that user with missing path is not authorized."""
+    def test_unauthorized_user_missing_parent_page_id(self):
+        """Test that user with missing parent_page_id is not authorized."""
         test_configs = {
             "incomplete_user": {
                 "token": "valid_token_123"
-                # Missing path
+                # Missing parent_page_id
             }
         }
 
@@ -82,31 +82,31 @@ class TestIsUserAuthorized:
 
     def test_unauthorized_user_empty_token(self):
         """Test that user with empty token is not authorized."""
-        test_configs = {"empty_token_user": {"token": "", "path": "valid_page_id_456"}}
+        test_configs = {"empty_token_user": {"token": "", "parent_page_id": "valid_page_id_456"}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             assert is_user_authorized("empty_token_user") is False
 
-    def test_unauthorized_user_empty_path(self):
-        """Test that user with empty path is not authorized."""
-        test_configs = {"empty_path_user": {"token": "valid_token_123", "path": ""}}
+    def test_unauthorized_user_empty_parent_page_id(self):
+        """Test that user with empty parent_page_id is not authorized."""
+        test_configs = {"empty_parent_page_id_user": {"token": "valid_token_123", "parent_page_id": ""}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
-            assert is_user_authorized("empty_path_user") is False
+            assert is_user_authorized("empty_parent_page_id_user") is False
 
     def test_unauthorized_user_whitespace_token(self):
         """Test that user with whitespace-only token is not authorized."""
-        test_configs = {"whitespace_token_user": {"token": "   ", "path": "valid_page_id_456"}}
+        test_configs = {"whitespace_token_user": {"token": "   ", "parent_page_id": "valid_page_id_456"}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             assert is_user_authorized("whitespace_token_user") is False
 
-    def test_unauthorized_user_whitespace_path(self):
-        """Test that user with whitespace-only path is not authorized."""
-        test_configs = {"whitespace_path_user": {"token": "valid_token_123", "path": "   "}}
+    def test_unauthorized_user_whitespace_parent_page_id(self):
+        """Test that user with whitespace-only parent_page_id is not authorized."""
+        test_configs = {"whitespace_parent_page_id_user": {"token": "valid_token_123", "parent_page_id": "   "}}
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
-            assert is_user_authorized("whitespace_path_user") is False
+            assert is_user_authorized("whitespace_parent_page_id_user") is False
 
     def test_unauthorized_empty_username(self):
         """Test that empty username is not authorized."""
@@ -118,7 +118,10 @@ class TestIsUserAuthorized:
 
     def test_multiple_valid_users(self):
         """Test authorization with multiple valid users."""
-        test_configs = {"user1": {"token": "token1", "path": "path1"}, "user2": {"token": "token2", "path": "path2"}}
+        test_configs = {
+            "user1": {"token": "token1", "parent_page_id": "page_id1"},
+            "user2": {"token": "token2", "parent_page_id": "page_id2"},
+        }
 
         with patch.dict(USER_CONFIGS, test_configs, clear=True):
             assert is_user_authorized("user1") is True
@@ -132,10 +135,10 @@ class TestUserConfigsIntegration:
     def test_config_consistency_between_functions(self):
         """Test that get_user_config and is_user_authorized are consistent."""
         test_configs = {
-            "consistent_user": {"token": "test_token", "path": "test_path"},
+            "consistent_user": {"token": "test_token", "parent_page_id": "test_page_id"},
             "incomplete_user": {
                 "token": "test_token"
-                # Missing path
+                # Missing parent_page_id
             },
         }
 
@@ -145,14 +148,14 @@ class TestUserConfigsIntegration:
             config = get_user_config("consistent_user")
             assert config is not None
             assert config["token"] == "test_token"
-            assert config["path"] == "test_path"
+            assert config["parent_page_id"] == "test_page_id"
 
             # User with incomplete config should not be authorized but still return config
             assert is_user_authorized("incomplete_user") is False
             config = get_user_config("incomplete_user")
             assert config is not None
             assert config["token"] == "test_token"
-            assert "path" not in config
+            assert "parent_page_id" not in config
 
             # Non-existent user should not be authorized and return None
             assert is_user_authorized("nonexistent") is False

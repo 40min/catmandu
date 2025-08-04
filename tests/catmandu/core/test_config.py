@@ -71,7 +71,7 @@ class TestSettings:
 
     def test_openai_default_settings(self):
         """Test that OpenAI settings have correct default values."""
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "dummy_token"}):
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "dummy_token"}, clear=True):
             settings = Settings()
 
             assert settings.openai_api_key is None
@@ -136,7 +136,9 @@ class TestSettings:
 
     def test_validate_environment_audio_processing_enabled_without_api_key(self):
         """Test that validation fails when audio processing is enabled but API key is missing."""
-        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "dummy_token", "AUDIO_PROCESSING_ENABLED": "true"}):
+        with patch.dict(
+            os.environ, {"TELEGRAM_BOT_TOKEN": "dummy_token", "AUDIO_PROCESSING_ENABLED": "true"}, clear=True
+        ):
             settings = Settings()
 
             with pytest.raises(SystemExit):
@@ -197,6 +199,7 @@ class TestSettings:
                 "TELEGRAM_BOT_TOKEN": "dummy_token",
                 "AUDIO_PROCESSING_ENABLED": "true",
             },
+            clear=True,
         ):
             settings = Settings()
             assert settings.is_audio_processing_available() is False
@@ -223,6 +226,7 @@ class TestSettings:
                 "TELEGRAM_BOT_TOKEN": "dummy_token",
                 "AUDIO_PROCESSING_ENABLED": "true",
             },
+            clear=True,
         ):
             settings = Settings()
             message = settings.get_audio_processing_status_message()
@@ -280,6 +284,7 @@ class TestSettings:
                 "TELEGRAM_BOT_TOKEN": "dummy_token",
                 "AUDIO_PROCESSING_ENABLED": "true",
             },
+            clear=True,
         ):
             settings = Settings()
             with pytest.raises(AudioProcessingConfigurationError) as exc_info:

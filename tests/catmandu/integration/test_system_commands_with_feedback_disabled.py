@@ -20,7 +20,9 @@ from catmandu.core.services.accumulator_manager import AccumulatorManager
 @pytest.fixture
 def mock_logging_service():
     """Create mock logging service."""
-    return Mock()
+    mock = Mock()
+    mock.log_chat_interaction_safely = Mock()
+    return mock
 
 
 class TestSystemCommandsWithFeedbackDisabled:
@@ -33,7 +35,7 @@ class TestSystemCommandsWithFeedbackDisabled:
         return AccumulatorManager(accumulator, feedback_enabled=False)
 
     @pytest.fixture
-    def router_with_feedback_disabled(self, accumulator_manager_feedback_disabled):
+    def router_with_feedback_disabled(self, accumulator_manager_feedback_disabled, mock_logging_service):
         """Create MessageRouter with feedback disabled AccumulatorManager."""
         from catmandu.core.infrastructure.chat_logger import ChatLogger
 

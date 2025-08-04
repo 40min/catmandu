@@ -9,7 +9,9 @@ from catmandu.core.services.accumulator_manager import AccumulatorManager
 @pytest.fixture
 def mock_logging_service():
     """Create mock logging service."""
-    return Mock()
+    mock = Mock()
+    mock.log_chat_interaction_safely = Mock()
+    return mock
 
 
 pytestmark = pytest.mark.asyncio
@@ -54,6 +56,7 @@ def app_test_with_mocks(
     mock_telegram_service,
     mock_mcp_client_manager,
     mock_accumulator_manager,
+    mock_logging_service,
 ):
     """Override services in app state for integration testing."""
     from unittest.mock import MagicMock

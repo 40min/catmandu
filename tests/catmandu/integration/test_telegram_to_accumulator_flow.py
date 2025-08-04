@@ -15,7 +15,9 @@ from catmandu.core.services.accumulator_manager import AccumulatorManager
 @pytest.fixture
 def mock_logging_service():
     """Create mock logging service."""
-    return Mock()
+    mock = Mock()
+    mock.log_chat_interaction_safely = Mock()
+    return mock
 
 
 pytestmark = pytest.mark.asyncio
@@ -59,6 +61,7 @@ def integration_poller(
     test_registry_with_cattackles,
     real_accumulator_manager,
     temp_settings,
+    mock_logging_service,
 ):
     """Create a TelegramPoller with real components for integration testing."""
     from unittest.mock import MagicMock
