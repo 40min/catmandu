@@ -11,6 +11,7 @@ uvicorn
 
 # Configuration and validation
 pydantic>=2.8.2
+pydantic-settings>=2.0.0
 
 # Structured logging
 structlog>=24.1.0
