@@ -1,4 +1,4 @@
-.PHONY: run test test-core test-echo analyze-chats analyze-chats-json analyze-participants analyze-commands docker-build docker-up docker-down docker-logs docker-restart docker-test docker-clean docker-ps docker-exec-core docker-exec-echo help help-docker
+.PHONY: run test test-core test-echo analyze-chats analyze-chats-json analyze-participants analyze-commands docker-build docker-up docker-down docker-logs docker-restart docker-test docker-clean docker-ps docker-exec-core docker-exec-echo help help-docker get-update-id set-update-id
 
 run:
 	uv run uvicorn catmandu.main:create_app --reload --app-dir src --port 8187
@@ -38,6 +38,10 @@ help:
 	@echo "  make analyze-chats   - Quick chat log analysis (local)"
 	@echo "  make docker-analyze-chats - Quick chat log analysis (Docker)"
 	@echo "  make docker-qnap-analyze-costs-daily - QNAP Docker daily cost analysis"
+	@echo ""
+	@echo "Data Management Commands:"
+	@echo "  make get-update-id   - View current Telegram update_id"
+	@echo "  make set-update-id VALUE=123 - Set Telegram update_id"
 	@echo ""
 	@echo "For detailed help on specific categories, use:"
 	@echo "  make help-docker     - Docker Compose commands"
@@ -336,6 +340,16 @@ help-analyze:
 	@echo ""
 	@echo "Direct script usage:"
 	@echo "  uv run python scripts/analyze_chats.py --help"
+
+# Update ID management commands
+get-update-id:
+	@echo "=== Current Telegram update_id ==="
+	@docker run --rm -v catmandu-update-data:/data alpine cat /data/update_id.txt 2>/dev/null || echo "File not found"
+
+set-update-id:
+	@echo "=== Setting update_id to $(VALUE) ==="
+	@docker run --rm -v catmandu-update-data:/data alpine sh -c "mkdir -p /data && echo '$(VALUE)' > /data/update_id.txt"
+	@echo "Update ID set to $(VALUE)"
 
 # Show help for cost analysis commands
 help-costs:

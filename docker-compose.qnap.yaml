@@ -5,8 +5,9 @@
 services:
   catmandu-core:
     volumes:
-      # Keep data directory as bind mount for persistence across deployments
-      - ./.data:/app/.data
+      # Use named volume for better permission handling
+      # For backup: docker run --rm -v catmandu-update-data:/data -v $(pwd):/backup alpine tar czf /backup/update_data_backup.tar.gz -C /data .
+      - update_data_qnap:/app/.data
 
   echo-cattackle:
     volumes:
@@ -16,6 +17,8 @@ services:
 volumes:
   cattackle_logs:
     name: catmandu-cattackle-logs
+  update_data_qnap:
+    name: catmandu-update-data-qnap
 
 networks:
   catmandu-network:
