@@ -1,17 +1,19 @@
 # Notion API client
 notion-client==2.2.1
 
-# MCP framework for cattackle implementation
-fastmcp==0.4.0
+# MCP HTTP transport dependencies (same as echo cattackle)
+anyio>=4.5
+click>=8.1.0
+httpx>=0.27
+mcp
+starlette
+uvicorn
 
 # Configuration and validation
-pydantic==2.8.2
-
-# Async HTTP client for Notion API
-httpx==0.27.0
+pydantic>=2.8.2
 
 # Structured logging
-structlog==24.1.0
+structlog>=24.1.0
 
 # Environment variable management
-python-dotenv==1.0.1
+python-dotenv>=1.0.1
