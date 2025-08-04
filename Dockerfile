@@ -53,6 +53,7 @@ RUN --mount=type=cache,target=/tmp/uv-cache \
 # Copy source code (will be overridden by volume mounts in development)
 COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
+COPY --chown=catmandu:catmandu scripts/ ./scripts/
 
 # Create necessary directories with proper permissions
 RUN mkdir -p logs/chats logs/costs .data && chown -R catmandu:catmandu logs .data
@@ -81,6 +82,7 @@ COPY --from=deps /app/.venv /app/.venv
 # Copy only necessary source code files
 COPY --chown=catmandu:catmandu src/ ./src/
 COPY --chown=catmandu:catmandu cattackles/ ./cattackles/
+COPY --chown=catmandu:catmandu scripts/ ./scripts/
 
 # Create necessary directories with proper permissions
 RUN mkdir -p logs/chats logs/costs .data && chown -R catmandu:catmandu logs .data

@@ -5,16 +5,17 @@
 services:
   catmandu-core:
     volumes:
-      # Override container volumes with host bind mounts for QNAP
-      # This allows direct access to logs from the host for analysis
-      - ./logs:/app/logs
-      - ./logs/costs:/app/logs/costs
+      # Keep data directory as bind mount for persistence across deployments
       - ./.data:/app/.data
 
   echo-cattackle:
     volumes:
-      # Mount logs directory for cattackle logs as well
-      - ./logs/cattackles:/app/logs
+      # Use named volume for cattackle logs
+      - cattackle_logs:/app/logs
+
+volumes:
+  cattackle_logs:
+    name: catmandu-cattackle-logs
 
 networks:
   catmandu-network:
