@@ -10,7 +10,7 @@ to_notion = { description = "Save message content to a daily Notion page", usage
 [cattackle.transport]
 type = "stdio"
 command = "python"
-args = ["src/server.py"]
+args = ["src/notion/server.py"]
 cwd = "."
 
 [cattackle.environment]

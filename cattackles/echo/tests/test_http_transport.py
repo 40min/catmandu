@@ -32,9 +32,9 @@ class TestHttpTransport:
         # Determine the correct script path
         current_dir = os.getcwd()
         if current_dir.endswith("cattackles/echo"):
-            script_path = "src/server.py"
+            script_path = "src/echo/server.py"
         else:
-            script_path = "cattackles/echo/src/server.py"
+            script_path = "cattackles/echo/src/echo/server.py"
 
         proc = subprocess.Popen(
             ["python", script_path, "--port", "8001", "--log-level", "ERROR"],
@@ -185,9 +185,9 @@ class TestHttpTransport:
         # Determine the correct script path
         current_dir = os.getcwd()
         if current_dir.endswith("cattackles/echo"):
-            script_path = "src/server.py"
+            script_path = "src/echo/server.py"
         else:
-            script_path = "cattackles/echo/src/server.py"
+            script_path = "cattackles/echo/src/echo/server.py"
 
         proc = subprocess.Popen(
             ["python", script_path, "--port", "8002", "--json-response", "--log-level", "ERROR"],
