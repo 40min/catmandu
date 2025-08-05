@@ -37,9 +37,10 @@ class TestPageManagement:
         user_config = UserConfigBuilder().add_test_user("testuser").build()
         today = DateTestHelper.get_test_date_string()
 
+        test_datetime = f"{today} 10:30:45"
         mock_notion_client = (
             MockNotionClientBuilder()
-            .with_no_existing_page("test_parent_page_id_testuser", today)
+            .with_no_existing_page("test_parent_page_id_testuser", test_datetime)
             .with_successful_page_creation("new_daily_page_123")
             .with_successful_content_append()
             .build()
@@ -47,9 +48,10 @@ class TestPageManagement:
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    # Mock datetime to return consistent date
-                    mock_datetime.now.return_value.strftime.return_value = today
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value=test_datetime),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
 
                     # Act
                     arguments = MCPTestHelper.create_mcp_arguments(
@@ -60,11 +62,15 @@ class TestPageManagement:
                     # Assert - Success response
                     MCPTestHelper.assert_success_response(result, f"✅ Message saved to Notion page for {today}")
 
-                    # Assert - Page search was performed
-                    mock_notion_client.find_page_by_title.assert_called_once_with("test_parent_page_id_testuser", today)
+                    # Assert - Page search was performed with full datetime
+                    mock_notion_client.find_page_by_title.assert_called_once_with(
+                        "test_parent_page_id_testuser", test_datetime
+                    )
 
-                    # Assert - New page was created
-                    mock_notion_client.create_page.assert_called_once_with("test_parent_page_id_testuser", today)
+                    # Assert - New page was created with full datetime
+                    mock_notion_client.create_page.assert_called_once_with(
+                        "test_parent_page_id_testuser", test_datetime
+                    )
 
                     # Assert - Content was appended to new page
                     mock_notion_client.append_content_to_page.assert_called_once()
@@ -79,17 +85,20 @@ class TestPageManagement:
         user_config = UserConfigBuilder().add_test_user("testuser").build()
         today = DateTestHelper.get_test_date_string()
 
+        test_datetime = f"{today} 10:30:45"
         mock_notion_client = (
             MockNotionClientBuilder()
-            .with_existing_page("test_parent_page_id_testuser", today, "existing_daily_page_456")
+            .with_existing_page("test_parent_page_id_testuser", test_datetime, "existing_daily_page_456")
             .with_successful_content_append()
             .build()
         )
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    mock_datetime.now.return_value.strftime.return_value = today
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value=test_datetime),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
 
                     # Act
                     arguments = MCPTestHelper.create_mcp_arguments(
@@ -100,8 +109,10 @@ class TestPageManagement:
                     # Assert - Success response
                     MCPTestHelper.assert_success_response(result, f"✅ Message saved to Notion page for {today}")
 
-                    # Assert - Page search was performed
-                    mock_notion_client.find_page_by_title.assert_called_once_with("test_parent_page_id_testuser", today)
+                    # Assert - Page search was performed with full datetime
+                    mock_notion_client.find_page_by_title.assert_called_once_with(
+                        "test_parent_page_id_testuser", test_datetime
+                    )
 
                     # Assert - No new page was created
                     mock_notion_client.create_page.assert_not_called()
@@ -130,8 +141,7 @@ class TestPageManagement:
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    mock_datetime.now.return_value.strftime.return_value = today
+                with patch("notion.core.cattackle.format_date_for_page_title", return_value=today):
 
                     # Act - First message
                     arguments1 = MCPTestHelper.create_mcp_arguments(
@@ -180,8 +190,7 @@ class TestPageManagement:
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    mock_datetime.now.return_value.strftime.return_value = today
+                with patch("notion.core.cattackle.format_date_for_page_title", return_value=today):
 
                     # Act
                     arguments = MCPTestHelper.create_mcp_arguments(text="Message that should fail", username="testuser")
@@ -320,9 +329,10 @@ class TestPageManagement:
         # Arrange
         user_config = UserConfigBuilder().add_test_user("testuser").build()
 
+        test_datetime = "2025-01-15 10:30:45"
         mock_notion_client = (
             MockNotionClientBuilder()
-            .with_no_existing_page("test_parent_page_id_testuser", "2025-01-15")
+            .with_no_existing_page("test_parent_page_id_testuser", test_datetime)
             .with_successful_page_creation("formatted_date_page")
             .with_successful_content_append()
             .build()
@@ -330,9 +340,7 @@ class TestPageManagement:
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    # Mock specific date
-                    mock_datetime.now.return_value.strftime.return_value = "2025-01-15"
+                with patch("notion.core.cattackle.format_date_for_page_title", return_value=test_datetime):
 
                     # Act
                     arguments = MCPTestHelper.create_mcp_arguments(text="Test date formatting", username="testuser")
@@ -341,13 +349,15 @@ class TestPageManagement:
                     # Assert - Success
                     MCPTestHelper.assert_success_response(result)
 
-                    # Assert - Page search used correct date format
+                    # Assert - Page search used correct datetime format
                     mock_notion_client.find_page_by_title.assert_called_once_with(
-                        "test_parent_page_id_testuser", "2025-01-15"
+                        "test_parent_page_id_testuser", test_datetime
                     )
 
-                    # Assert - Page creation used correct date format
-                    mock_notion_client.create_page.assert_called_once_with("test_parent_page_id_testuser", "2025-01-15")
+                    # Assert - Page creation used correct datetime format
+                    mock_notion_client.create_page.assert_called_once_with(
+                        "test_parent_page_id_testuser", test_datetime
+                    )
 
     @pytest.mark.asyncio
     async def test_message_timestamp_formatting(self, cattackle):
@@ -365,12 +375,10 @@ class TestPageManagement:
 
         with patch("notion.config.user_config.USER_CONFIGS", user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                with patch("notion.core.cattackle.datetime") as mock_datetime:
-                    # Mock both date and time
-                    mock_datetime.now.return_value.strftime.side_effect = lambda fmt: {
-                        "%Y-%m-%d": today,
-                        "%H:%M:%S": "14:30:45",
-                    }[fmt]
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value=today),
+                    patch("notion.core.cattackle.format_timestamp_for_content", return_value="[14:30:45]"),
+                ):
 
                     # Act
                     arguments = MCPTestHelper.create_mcp_arguments(

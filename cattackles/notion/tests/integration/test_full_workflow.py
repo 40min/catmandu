@@ -51,26 +51,34 @@ class TestFullWorkflowIntegration:
         with patch("notion.config.user_config.USER_CONFIGS", test_user_config):
             # Mock Notion client creation and responses
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                # Page doesn't exist yet
-                mock_notion_client.find_page_by_title.return_value = None
-                # Page creation returns new page ID
-                mock_notion_client.create_page.return_value = "new_page_id_789"
-                # Content appending succeeds
-                mock_notion_client.append_content_to_page.return_value = None
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
+                    # Page doesn't exist yet
+                    mock_notion_client.find_page_by_title.return_value = None
+                    # Page creation returns new page ID
+                    mock_notion_client.create_page.return_value = "new_page_id_789"
+                    # Content appending succeeds
+                    mock_notion_client.append_content_to_page.return_value = None
 
-                # Act - Call through MCP handler to test full integration
-                arguments = {"text": test_message, "username": "testuser"}
-                result = await handle_tool_call(cattackle, "to_notion", arguments)
+                    # Act - Call through MCP handler to test full integration
+                    arguments = {"text": test_message, "username": "testuser"}
+                    result = await handle_tool_call(cattackle, "to_notion", arguments)
 
-                # Assert - Response format
-                assert len(result) == 1
-                response_data = json.loads(result[0].text)
-                assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
-                assert response_data["error"] == ""
+                    # Assert - Response format
+                    assert len(result) == 1
+                    response_data = json.loads(result[0].text)
+                    assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
+                    assert response_data["error"] == ""
 
-                # Assert - Notion client interactions
-                mock_notion_client.find_page_by_title.assert_called_once_with("test_parent_page_id_456", today)
-                mock_notion_client.create_page.assert_called_once_with("test_parent_page_id_456", today)
+                    # Assert - Notion client interactions use full datetime
+                    mock_notion_client.find_page_by_title.assert_called_once_with(
+                        "test_parent_page_id_456", "2025-08-05 10:30:45"
+                    )
+                    mock_notion_client.create_page.assert_called_once_with(
+                        "test_parent_page_id_456", "2025-08-05 10:30:45"
+                    )
 
                 # Verify content was appended with timestamp
                 mock_notion_client.append_content_to_page.assert_called_once()
@@ -89,23 +97,29 @@ class TestFullWorkflowIntegration:
 
         with patch("notion.config.user_config.USER_CONFIGS", test_user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                # Page already exists
-                mock_notion_client.find_page_by_title.return_value = "existing_page_id_123"
-                # Content appending succeeds
-                mock_notion_client.append_content_to_page.return_value = None
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
+                    # Page already exists
+                    mock_notion_client.find_page_by_title.return_value = "existing_page_id_123"
+                    # Content appending succeeds
+                    mock_notion_client.append_content_to_page.return_value = None
 
-                # Act
-                arguments = {"text": test_message, "username": "testuser"}
-                result = await handle_tool_call(cattackle, "to_notion", arguments)
+                    # Act
+                    arguments = {"text": test_message, "username": "testuser"}
+                    result = await handle_tool_call(cattackle, "to_notion", arguments)
 
-                # Assert - Response format
-                assert len(result) == 1
-                response_data = json.loads(result[0].text)
-                assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
-                assert response_data["error"] == ""
+                    # Assert - Response format
+                    assert len(result) == 1
+                    response_data = json.loads(result[0].text)
+                    assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
+                    assert response_data["error"] == ""
 
-                # Assert - Notion client interactions
-                mock_notion_client.find_page_by_title.assert_called_once_with("test_parent_page_id_456", today)
+                    # Assert - Notion client interactions use full datetime
+                    mock_notion_client.find_page_by_title.assert_called_once_with(
+                        "test_parent_page_id_456", "2025-08-05 10:30:45"
+                    )
                 # Should not create new page since one exists
                 mock_notion_client.create_page.assert_not_called()
 
@@ -124,17 +138,21 @@ class TestFullWorkflowIntegration:
 
         with patch("notion.config.user_config.USER_CONFIGS", test_user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                # Page already exists
-                mock_notion_client.find_page_by_title.return_value = "existing_page_id_456"
-                mock_notion_client.append_content_to_page.return_value = None
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
+                    # Page already exists
+                    mock_notion_client.find_page_by_title.return_value = "existing_page_id_456"
+                    mock_notion_client.append_content_to_page.return_value = None
 
-                # Act
-                arguments = {"text": test_message, "username": "testuser", "accumulated_params": accumulated_params}
-                result = await handle_tool_call(cattackle, "to_notion", arguments)
+                    # Act
+                    arguments = {"text": test_message, "username": "testuser", "accumulated_params": accumulated_params}
+                    result = await handle_tool_call(cattackle, "to_notion", arguments)
 
-                # Assert - Response format
-                assert len(result) == 1
-                response_data = json.loads(result[0].text)
+                    # Assert - Response format
+                    assert len(result) == 1
+                    response_data = json.loads(result[0].text)
                 assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
                 assert response_data["error"] == ""
 
@@ -157,15 +175,19 @@ class TestFullWorkflowIntegration:
 
         with patch("notion.config.user_config.USER_CONFIGS", test_user_config):
             with patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client):
-                mock_notion_client.find_page_by_title.return_value = "existing_page_id_789"
-                mock_notion_client.append_content_to_page.return_value = None
+                with (
+                    patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
+                    patch("notion.core.cattackle.get_current_date_iso", return_value=today),
+                ):
+                    mock_notion_client.find_page_by_title.return_value = "existing_page_id_789"
+                    mock_notion_client.append_content_to_page.return_value = None
 
-                # Act - No accumulated_params provided
-                arguments = {"text": test_message, "username": "testuser"}
-                result = await handle_tool_call(cattackle, "to_notion", arguments)
+                    # Act - No accumulated_params provided
+                    arguments = {"text": test_message, "username": "testuser"}
+                    result = await handle_tool_call(cattackle, "to_notion", arguments)
 
-                # Assert - Response format
-                assert len(result) == 1
+                    # Assert - Response format
+                    assert len(result) == 1
                 response_data = json.loads(result[0].text)
                 assert response_data["data"] == f"✅ Message saved to Notion page for {today}"
 

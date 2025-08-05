@@ -4,12 +4,13 @@ This module contains the main NotionCattackle class that orchestrates
 the message saving workflow, including page management and content operations.
 """
 
-from datetime import datetime
 from typing import List, Optional
 
 import structlog
 from notion.clients.notion_client import NotionClientWrapper
 from notion.config.user_config import get_user_config, is_user_authorized
+from notion.utils.content_utils import format_message_content, truncate_content
+from notion.utils.date_utils import format_date_for_page_title, format_timestamp_for_content, get_current_date_iso
 from notion_client.errors import APIResponseError, RequestTimeoutError
 
 logger = structlog.get_logger(__name__)
@@ -72,19 +73,20 @@ class NotionCattackle:
         # Initialize Notion client for this user
         notion_client = NotionClientWrapper(token)
 
-        # Get today's date for page title
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Get today's datetime for page title using proper timezone handling
+        today_datetime = format_date_for_page_title()
+        # Get just the date part for user-friendly success message
+        today_date = get_current_date_iso()
 
         try:
             # Get or create today's daily page
-            page_id = await self._get_or_create_daily_page(notion_client, parent_page_id, today)
+            page_id = await self._get_or_create_daily_page(notion_client, parent_page_id, today_datetime)
 
-            # Prepare content to append
-            content_to_append = message_content
-            if accumulated_params:
-                # If there are accumulated parameters, include them in the content
-                accumulated_text = " ".join(accumulated_params)
-                content_to_append = f"{accumulated_text} {message_content}".strip()
+            # Prepare content to append with proper formatting and sanitization
+            content_to_append = format_message_content(message_content, accumulated_params)
+
+            # Truncate content if it's too long for Notion
+            content_to_append = truncate_content(content_to_append)
 
             # Append message to the page
             await self._append_message_to_page(notion_client, page_id, content_to_append)
@@ -96,7 +98,7 @@ class NotionCattackle:
                 content_length=len(content_to_append),
             )
 
-            return f"✅ Message saved to Notion page for {today}"
+            return f"✅ Message saved to Notion page for {today_date}"
 
         except Exception as e:
             # Handle any errors from the helper methods (they already log specific details)
@@ -118,15 +120,15 @@ class NotionCattackle:
             return "❌ An unexpected error occurred. Please try again later."
 
     async def _get_or_create_daily_page(
-        self, notion_client: NotionClientWrapper, parent_page_id: str, date: str
+        self, notion_client: NotionClientWrapper, parent_page_id: str, datetime_str: str
     ) -> str:
         """
-        Get or create a daily page for the specified date.
+        Get or create a daily page for the specified datetime.
 
         Args:
             notion_client: Initialized Notion client wrapper
             parent_page_id: Parent page or database ID where the daily page should be created
-            date: Date string in YYYY-MM-DD format
+            datetime_str: Datetime string in YYYY-MM-DD HH:MM:SS format
 
         Returns:
             str: Page ID of the daily page
@@ -137,20 +139,20 @@ class NotionCattackle:
         Requirements: 2.1, 2.2
         """
         try:
-            self.logger.debug("Getting or creating daily page", parent_page_id=parent_page_id, date=date)
+            self.logger.debug("Getting or creating daily page", parent_page_id=parent_page_id, date=datetime_str)
 
-            # First, try to find existing page with today's date
-            existing_page_id = await notion_client.find_page_by_title(parent_page_id, date)
+            # First, try to find existing page with today's datetime
+            existing_page_id = await notion_client.find_page_by_title(parent_page_id, datetime_str)
 
             if existing_page_id:
-                self.logger.debug("Found existing daily page", page_id=existing_page_id, date=date)
+                self.logger.debug("Found existing daily page", page_id=existing_page_id, date=datetime_str)
                 return existing_page_id
 
             # Page doesn't exist, create a new one
-            self.logger.info("Creating new daily page", parent_page_id=parent_page_id, date=date)
-            page_id = await notion_client.create_page(parent_page_id, date)
+            self.logger.info("Creating new daily page", parent_page_id=parent_page_id, date=datetime_str)
+            page_id = await notion_client.create_page(parent_page_id, datetime_str)
 
-            self.logger.info("Successfully created daily page", page_id=page_id, date=date)
+            self.logger.info("Successfully created daily page", page_id=page_id, date=datetime_str)
             return page_id
 
         except APIResponseError as e:
@@ -159,7 +161,7 @@ class NotionCattackle:
             self.logger.error(
                 "Notion API error during page creation/lookup",
                 parent_page_id=parent_page_id,
-                date=date,
+                date=datetime_str,
                 error=str(e),
                 status_code=getattr(e, "status", "unknown"),
                 error_code=getattr(e, "code", "unknown"),
@@ -170,7 +172,7 @@ class NotionCattackle:
             self.logger.error(
                 "Request timeout during page creation/lookup",
                 parent_page_id=parent_page_id,
-                date=date,
+                date=datetime_str,
                 error=str(e),
             )
             raise Exception("❌ Request timed out. Please try again later.")
@@ -179,7 +181,7 @@ class NotionCattackle:
             self.logger.error(
                 "Unexpected error during page creation/lookup",
                 parent_page_id=parent_page_id,
-                date=date,
+                date=datetime_str,
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -202,9 +204,9 @@ class NotionCattackle:
         try:
             self.logger.debug("Appending message to page", page_id=page_id, content_length=len(content))
 
-            # Add timestamp to the message
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            formatted_content = f"[{timestamp}] {content}"
+            # Add timestamp to the message using proper timezone handling
+            timestamp = format_timestamp_for_content()
+            formatted_content = f"{timestamp} {content}"
 
             await notion_client.append_content_to_page(page_id, formatted_content)
 
