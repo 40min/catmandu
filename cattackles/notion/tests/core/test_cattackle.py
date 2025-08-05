@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from notion.clients.notion_client import NotionClientWrapper
 from notion.core.cattackle import NotionCattackle
+from notion_client.errors import APIResponseError, RequestTimeoutError
 
 
 class TestNotionCattackle:
@@ -156,7 +157,7 @@ class TestNotionCattackle:
 
     @pytest.mark.asyncio
     async def test_save_to_notion_notion_api_error(self, cattackle, mock_notion_client, sample_user_config):
-        """Test handling of Notion API errors."""
+        """Test handling of generic API errors (now masked for security)."""
         username = "testuser"
         message_content = "Test message"
 
@@ -167,13 +168,13 @@ class TestNotionCattackle:
             patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
         ):
 
-            # Mock API error
+            # Mock generic API error (not a specific APIResponseError)
             mock_notion_client.find_page_by_title.side_effect = Exception("API Error")
 
             result = await cattackle.save_to_notion(username, message_content)
 
-            assert result.startswith("❌ Failed to save message:")
-            assert "API Error" in result
+            # Should return generic error message for security
+            assert result == "❌ An unexpected error occurred. Please try again later."
 
     @pytest.mark.asyncio
     async def test_get_or_create_daily_page_existing_page(self, cattackle, mock_notion_client):
@@ -214,7 +215,7 @@ class TestNotionCattackle:
 
         mock_notion_client.find_page_by_title.side_effect = Exception("Search failed")
 
-        with pytest.raises(Exception, match="Search failed"):
+        with pytest.raises(Exception, match="❌ An unexpected error occurred. Please try again later."):
             await cattackle._get_or_create_daily_page(mock_notion_client, parent_page_id, date)
 
     @pytest.mark.asyncio
@@ -243,7 +244,7 @@ class TestNotionCattackle:
 
         mock_notion_client.append_content_to_page.side_effect = Exception("Append failed")
 
-        with pytest.raises(Exception, match="Append failed"):
+        with pytest.raises(Exception, match="❌ An unexpected error occurred. Please try again later."):
             await cattackle._append_message_to_page(mock_notion_client, page_id, content)
 
     @pytest.mark.asyncio
@@ -293,3 +294,191 @@ class TestNotionCattackle:
             expected_date = datetime.now().strftime("%Y-%m-%d")
             assert result == f"✅ Message saved to Notion page for {expected_date}"
             mock_notion_client.append_content_to_page.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_api_response_error_401_unauthorized(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of 401 Unauthorized API error."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock 401 API error
+            api_error = APIResponseError(
+                response=unittest.mock.MagicMock(status_code=401), message="Unauthorized", code="unauthorized"
+            )
+            api_error.status = 401
+            api_error.code = "unauthorized"
+            mock_notion_client.find_page_by_title.side_effect = api_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ Authentication failed. Please check your Notion integration token."
+
+    @pytest.mark.asyncio
+    async def test_api_response_error_404_object_not_found(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of 404 object not found API error."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock 404 API error with object_not_found code
+            api_error = APIResponseError(
+                response=unittest.mock.MagicMock(status_code=404), message="Object not found", code="object_not_found"
+            )
+            api_error.status = 404
+            api_error.code = "object_not_found"
+            mock_notion_client.find_page_by_title.side_effect = api_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ The configured parent page was not found. Please check your configuration."
+
+    @pytest.mark.asyncio
+    async def test_api_response_error_429_rate_limit(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of 429 rate limit API error."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock 429 API error
+            api_error = APIResponseError(
+                response=unittest.mock.MagicMock(status_code=429), message="Rate limited", code="rate_limited"
+            )
+            api_error.status = 429
+            api_error.code = "rate_limited"
+            mock_notion_client.find_page_by_title.side_effect = api_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ Rate limit exceeded. Please try again in a few minutes."
+
+    @pytest.mark.asyncio
+    async def test_api_response_error_500_server_error(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of 500 server error."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock 500 API error
+            api_error = APIResponseError(
+                response=unittest.mock.MagicMock(status_code=500),
+                message="Internal server error",
+                code="internal_server_error",
+            )
+            api_error.status = 500
+            api_error.code = "internal_server_error"
+            mock_notion_client.find_page_by_title.side_effect = api_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ Notion service is temporarily unavailable. Please try again later."
+
+    @pytest.mark.asyncio
+    async def test_request_timeout_error(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of request timeout error."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock timeout error
+            timeout_error = RequestTimeoutError("Request timed out")
+            mock_notion_client.find_page_by_title.side_effect = timeout_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ Request timed out. Please try again later."
+
+    @pytest.mark.asyncio
+    async def test_value_error_handling(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of ValueError (now treated as unexpected error)."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock ValueError
+            value_error = ValueError("Invalid configuration format")
+            mock_notion_client.find_page_by_title.side_effect = value_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            # ValueError is now handled as unexpected error in helper methods
+            assert result == "❌ An unexpected error occurred. Please try again later."
+
+    @pytest.mark.asyncio
+    async def test_unexpected_error_handling(self, cattackle, mock_notion_client, sample_user_config):
+        """Test handling of unexpected errors."""
+        username = "testuser"
+        message_content = "Test message"
+
+        with (
+            patch("notion.core.cattackle.is_user_authorized", return_value=True),
+            patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
+            patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
+        ):
+
+            # Mock unexpected error
+            unexpected_error = RuntimeError("Unexpected runtime error")
+            mock_notion_client.find_page_by_title.side_effect = unexpected_error
+
+            result = await cattackle.save_to_notion(username, message_content)
+
+            assert result == "❌ An unexpected error occurred. Please try again later."
+
+    def test_handle_api_error_method(self, cattackle):
+        """Test the _handle_api_error method directly."""
+        # Test 401 error
+        error_401 = APIResponseError(
+            response=unittest.mock.MagicMock(status_code=401), message="Unauthorized", code="unauthorized"
+        )
+        error_401.status = 401
+        error_401.code = "unauthorized"
+        result = cattackle._handle_api_error(error_401)
+        assert result == "❌ Authentication failed. Please check your Notion integration token."
+
+        # Test 403 error
+        error_403 = APIResponseError(
+            response=unittest.mock.MagicMock(status_code=403), message="Forbidden", code="forbidden"
+        )
+        error_403.status = 403
+        error_403.code = "forbidden"
+        result = cattackle._handle_api_error(error_403)
+        assert result == "❌ Access denied. Please check your Notion integration permissions."
+
+        # Test unknown error
+        error_unknown = APIResponseError(
+            response=unittest.mock.MagicMock(status_code=999), message="Unknown", code="unknown"
+        )
+        error_unknown.status = 999
+        error_unknown.code = "unknown"
+        result = cattackle._handle_api_error(error_unknown)
+        assert result == "❌ Notion API error occurred. Please try again later."

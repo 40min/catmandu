@@ -6,6 +6,10 @@ through a simple dictionary mapping usernames to their Notion tokens and paths.
 
 from typing import Dict, Optional
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 # User configuration mapping: username -> {token, parent_page_id}
 # Each user needs a Notion integration token and a target parent page/database ID
 USER_CONFIGS: Dict[str, Dict[str, str]] = {
@@ -57,4 +61,15 @@ def is_user_authorized(username: str) -> bool:
     token = config.get("token", "").strip()
     parent_page_id = config.get("parent_page_id", "").strip()
 
-    return bool(token and parent_page_id)
+    is_valid = bool(token and parent_page_id)
+
+    # Only log when there's an actual configuration issue (not just missing user)
+    if config and not is_valid:
+        logger.warning(
+            "User configuration is incomplete",
+            username=username,
+            has_token=bool(token),
+            has_parent_page_id=bool(parent_page_id),
+        )
+
+    return is_valid

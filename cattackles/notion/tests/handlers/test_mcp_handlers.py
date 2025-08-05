@@ -137,7 +137,8 @@ class TestMCPHandlers:
         assert len(result) == 1
         response_data = json.loads(result[0].text)
         assert response_data["data"] == ""
-        assert "Notion API error" in response_data["error"]
+        # Should return generic error message for security
+        assert response_data["error"] == "An unexpected error occurred. Please try again later."
 
     @pytest.mark.asyncio
     async def test_handle_unknown_tool(self, mock_cattackle):
@@ -181,3 +182,66 @@ class TestMCPHandlers:
             message_content="",
             accumulated_params=["Accumulated message 1", "Accumulated message 2"],
         )
+
+    @pytest.mark.asyncio
+    async def test_handle_to_notion_invalid_username_format(self, mock_cattackle):
+        """Test to_notion command handling with invalid username format."""
+        # Test with non-string username
+        arguments = {"text": "Test message", "username": 123}
+
+        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+
+        assert len(result) == 1
+        response_data = json.loads(result[0].text)
+        assert response_data["data"] == ""
+        assert "Username must be a non-empty string" in response_data["error"]
+
+        mock_cattackle.save_to_notion.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_to_notion_whitespace_username(self, mock_cattackle):
+        """Test to_notion command handling with whitespace-only username."""
+        arguments = {"text": "Test message", "username": "   "}
+
+        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+
+        assert len(result) == 1
+        response_data = json.loads(result[0].text)
+        assert response_data["data"] == ""
+        assert "Username must be a non-empty string" in response_data["error"]
+
+        mock_cattackle.save_to_notion.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_call_value_error_handling(self, mock_cattackle):
+        """Test that ValueError is handled separately from other exceptions."""
+        # Arrange
+        arguments = {"text": "Test message", "username": "testuser"}
+        mock_cattackle.save_to_notion.side_effect = ValueError("Configuration validation failed")
+
+        # Act
+        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+
+        # Assert
+        assert len(result) == 1
+        response_data = json.loads(result[0].text)
+        assert response_data["data"] == ""
+        assert "Configuration validation failed" in response_data["error"]
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_call_unexpected_error_masking(self, mock_cattackle):
+        """Test that unexpected errors are masked with generic message."""
+        # Arrange
+        arguments = {"text": "Test message", "username": "testuser"}
+        mock_cattackle.save_to_notion.side_effect = RuntimeError("Internal system error with sensitive info")
+
+        # Act
+        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+
+        # Assert
+        assert len(result) == 1
+        response_data = json.loads(result[0].text)
+        assert response_data["data"] == ""
+        # Should not expose the internal error message
+        assert response_data["error"] == "An unexpected error occurred. Please try again later."
+        assert "Internal system error with sensitive info" not in response_data["error"]

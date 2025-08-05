@@ -93,7 +93,8 @@ class TestMCPServerIntegration:
         assert len(result) == 1
         response_data = json.loads(result[0].text)
         assert response_data["data"] == ""
-        assert "Notion API error" in response_data["error"]
+        # Should return generic error message for security
+        assert response_data["error"] == "An unexpected error occurred. Please try again later."
 
     @pytest.mark.asyncio
     async def test_call_unknown_tool(self, mock_cattackle):
