@@ -36,7 +36,7 @@ def _parse_user_configs() -> Dict[str, Dict[str, str]]:
     user_configs: Dict[str, Dict[str, str]] = {}
 
     # Pattern to match NOTION__USER__{USERNAME}__{FIELD}
-    pattern = re.compile(r"^NOTION__USER__([A-Z_]+)__(TOKEN|PARENT_PAGE_ID)$")
+    pattern = re.compile(r"^NOTION__USER__([A-Z0-9_]+)__(TOKEN|PARENT_PAGE_ID)$")
 
     for env_var, value in os.environ.items():
         match = pattern.match(env_var)

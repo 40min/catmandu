@@ -152,7 +152,7 @@ def list_users():
     lines = read_env_file()
 
     users = {}
-    pattern = re.compile(r"^NOTION__USER__([A-Z_]+)__(TOKEN|PARENT_PAGE_ID)=(.*)$")
+    pattern = re.compile(r"^NOTION__USER__([A-Z0-9_]+)__(TOKEN|PARENT_PAGE_ID)=(.*)$")
 
     for line in lines:
         match = pattern.match(line.strip())
@@ -236,6 +236,11 @@ def update_user(username, token=None, parent_page_id=None):
 def test_user_config(username: str) -> bool:
     """Test configuration for a specific user."""
     try:
+        # Load environment variables from .env file
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
         from notion.config.user_config import get_user_config, is_user_authorized
     except ImportError:
         print("❌ Cannot import Notion configuration modules")
@@ -279,6 +284,11 @@ def test_user_config(username: str) -> bool:
 def test_all_configs():
     """Test all discovered user configurations."""
     try:
+        # Load environment variables from .env file
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
         from notion.config.user_config import _get_user_configs
     except ImportError:
         print("❌ Cannot import Notion configuration modules")
