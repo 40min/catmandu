@@ -1,20 +1,23 @@
-# Notion API client
+# Notion API client - pinned for stability
 notion-client==2.2.1
 
-# MCP HTTP transport dependencies (same as echo cattackle)
-anyio>=4.5
-click>=8.1.0
-httpx>=0.27
-mcp
-starlette
-uvicorn
+# MCP framework and transport dependencies
+mcp>=1.11.0
+anyio>=4.5,<5.0
+click>=8.1.0,<9.0
+httpx>=0.27,<1.0
+starlette>=0.37.0,<1.0
+uvicorn[standard]>=0.30.1,<1.0
 
 # Configuration and validation
-pydantic>=2.8.2
-pydantic-settings>=2.0.0
+pydantic>=2.8.2,<3.0
+pydantic-settings>=2.0.0,<3.0
 
 # Structured logging
-structlog>=24.1.0
+structlog>=24.1.0,<25.0
 
 # Environment variable management
-python-dotenv>=1.0.1
+python-dotenv>=1.0.1,<2.0
+
+# Additional dependencies for HTTP transport
+fastapi>=0.111.0,<1.0

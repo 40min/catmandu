@@ -16,11 +16,3 @@ max_retries = 3
 [cattackle.mcp.transport]
 type = "http"
 url = "http://echo-cattackle:8001/mcp"
-command = "python"
-args = ["cattackles/echo/src/echo/server.py", "--port", "8001"]
-env = { "PYTHONPATH" = ".", "LOG_LEVEL" = "INFO" }
-cwd = "."
-
-[cattackle.settings]
-max_payload_size = 1024
-enable_logging = true

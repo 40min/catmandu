@@ -50,7 +50,8 @@ USER cattackle
 # Configure environment variables for development
 ENV LOG_LEVEL=DEBUG \
     MCP_SERVER_PORT=8002 \
-    NOTION_API_BASE_URL="https://api.notion.com/v1"
+    NOTION_API_BASE_URL="https://api.notion.com/v1" \
+    PYTHONPATH=/app/src
 
 # Expose the MCP server port
 EXPOSE 8002
@@ -75,7 +76,7 @@ USER cattackle
 ENV LOG_LEVEL=INFO \
     MCP_SERVER_PORT=8002 \
     NOTION_API_BASE_URL="https://api.notion.com/v1" \
-    PYTHONPATH=/app
+    PYTHONPATH=/app/src
 
 # Expose the MCP server port
 EXPOSE 8002
