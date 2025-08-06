@@ -1,35 +1,94 @@
 """User configuration management for Notion cattackle.
 
 This module provides user authentication and configuration management
-through a simple dictionary mapping usernames to their Notion tokens and paths.
+by parsing environment variables with flattened naming convention.
+
+Environment variable format:
+- NOTION__USER__{USERNAME}__TOKEN: Notion integration token for the user
+- NOTION__USER__{USERNAME}__PARENT_PAGE_ID: Target parent page/database ID
+
+Example:
+- NOTION__USER__JOHN_DOE__TOKEN=secret_token_123
+- NOTION__USER__JOHN_DOE__PARENT_PAGE_ID=page_id_456
 """
 
+import os
+import re
 from typing import Dict, Optional
 
 import structlog
 
 logger = structlog.get_logger(__name__)
 
-# User configuration mapping: username -> {token, parent_page_id}
-# Each user needs a Notion integration token and a target parent page/database ID
-USER_CONFIGS: Dict[str, Dict[str, str]] = {
-    # Example configuration (replace with actual user configurations):
-    # "username1": {
-    #     "token": "secret_notion_integration_token_1",
-    #     "parent_page_id": "page_id_or_database_id_1"
-    # },
-    # "username2": {
-    #     "token": "secret_notion_integration_token_2",
-    #     "parent_page_id": "page_id_or_database_id_2"
-    # }
-}
+# Cache for parsed user configurations
+_user_configs_cache: Optional[Dict[str, Dict[str, str]]] = None
+
+
+def _parse_user_configs() -> Dict[str, Dict[str, str]]:
+    """Parse user configurations from environment variables.
+
+    Looks for environment variables matching the pattern:
+    NOTION__USER__{USERNAME}__TOKEN and NOTION__USER__{USERNAME}__PARENT_PAGE_ID
+
+    Returns:
+        Dictionary mapping usernames to their configuration dictionaries
+    """
+    user_configs: Dict[str, Dict[str, str]] = {}
+
+    # Pattern to match NOTION__USER__{USERNAME}__{FIELD}
+    pattern = re.compile(r"^NOTION__USER__([A-Z_]+)__(TOKEN|PARENT_PAGE_ID)$")
+
+    for env_var, value in os.environ.items():
+        match = pattern.match(env_var)
+        if not match:
+            continue
+
+        username_env = match.group(1)  # Username in environment format (UPPERCASE_WITH_UNDERSCORES)
+        field = match.group(2).lower()  # token or parent_page_id
+
+        # Convert environment username format to regular username
+        # JOHN_DOE -> john_doe (or keep as is - depends on your preference)
+        username = username_env.lower()
+
+        # Initialize user config if not exists
+        if username not in user_configs:
+            user_configs[username] = {}
+
+        # Map field names
+        if field == "token":
+            user_configs[username]["token"] = value.strip()
+        elif field == "parent_page_id":
+            user_configs[username]["parent_page_id"] = value.strip()
+
+    # Log discovered users (without sensitive data)
+    if user_configs:
+        usernames = list(user_configs.keys())
+        logger.info(
+            "Loaded Notion user configurations from environment variables",
+            user_count=len(usernames),
+            usernames=usernames,
+        )
+    else:
+        logger.info("No Notion user configurations found in environment variables")
+
+    return user_configs
+
+
+def _get_user_configs() -> Dict[str, Dict[str, str]]:
+    """Get cached user configurations, parsing from environment if needed."""
+    global _user_configs_cache
+
+    if _user_configs_cache is None:
+        _user_configs_cache = _parse_user_configs()
+
+    return _user_configs_cache
 
 
 def get_user_config(username: str) -> Optional[Dict[str, str]]:
     """Get user configuration by username.
 
     Args:
-        username: The username to look up
+        username: The username to look up (case-insensitive)
 
     Returns:
         Dictionary containing 'token' and 'parent_page_id' keys if user exists,
@@ -38,14 +97,18 @@ def get_user_config(username: str) -> Optional[Dict[str, str]]:
     if not username:
         return None
 
-    return USER_CONFIGS.get(username)
+    # Normalize username to lowercase for lookup
+    normalized_username = username.lower()
+    user_configs = _get_user_configs()
+
+    return user_configs.get(normalized_username)
 
 
 def is_user_authorized(username: str) -> bool:
     """Check if a user is authorized (has valid configuration).
 
     Args:
-        username: The username to check
+        username: The username to check (case-insensitive)
 
     Returns:
         True if user has valid configuration, False otherwise
@@ -73,3 +136,13 @@ def is_user_authorized(username: str) -> bool:
         )
 
     return is_valid
+
+
+def reload_user_configs() -> None:
+    """Force reload of user configurations from environment variables.
+
+    This can be useful during development or if environment variables change at runtime.
+    """
+    global _user_configs_cache
+    _user_configs_cache = None
+    logger.info("User configurations cache cleared, will reload from environment on next access")

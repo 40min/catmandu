@@ -13,6 +13,35 @@ test-echo:
 	@echo "=== Running Echo Cattackle Tests ==="
 	cd cattackles/echo && PYTHONPATH=../../:src uv run pytest
 
+test-notion-config:
+	@echo "=== Testing Notion Cattackle Configuration ==="
+	python scripts/manage_notion_users.py test
+
+test-notion-config-user:
+	@echo "=== Testing Notion Configuration for User: $(USER) ==="
+	python scripts/manage_notion_users.py test "$(USER)"
+
+# Notion user management commands
+list-notion-users:
+	@echo "=== Listing Notion Users ==="
+	@python scripts/manage_notion_users.py list
+
+add-notion-user:
+	@echo "=== Adding Notion User: $(USER) ==="
+	@python scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)"
+
+update-notion-user-token:
+	@echo "=== Updating Token for Notion User: $(USER) ==="
+	@python scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)"
+
+update-notion-user-page:
+	@echo "=== Updating Page ID for Notion User: $(USER) ==="
+	@python scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)"
+
+remove-notion-user:
+	@echo "=== Removing Notion User: $(USER) ==="
+	@python scripts/manage_notion_users.py remove "$(USER)"
+
 # Show all available commands
 help:
 	@echo "Catmandu Development Commands:"
@@ -22,6 +51,15 @@ help:
 	@echo "  make test            - Run all tests (core + cattackles)"
 	@echo "  make test-core       - Run core application tests only"
 	@echo "  make test-echo       - Run echo cattackle tests only"
+	@echo "  make test-notion-config - Test Notion cattackle configuration"
+	@echo "  make test-notion-config-user USER=username - Test specific user config"
+	@echo ""
+	@echo "Notion User Management:"
+	@echo "  make list-notion-users   - List all configured Notion users"
+	@echo "  make add-notion-user USER='John Doe' TOKEN=token PAGE_ID=page_id - Add user"
+	@echo "  make update-notion-user-token USER='John Doe' TOKEN=new_token - Update token"
+	@echo "  make update-notion-user-page USER='John Doe' PAGE_ID=new_page_id - Update page"
+	@echo "  make remove-notion-user USER='John Doe' - Remove user"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make help-docker     - Show detailed Docker Compose commands"

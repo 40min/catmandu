@@ -21,43 +21,48 @@ A Catmandu cattackle that enables users to save Telegram messages directly to No
 
 ## Configuration
 
+### Environment Configuration
+
+The cattackle uses these environment variables:
+
+```bash
+# Server configuration
+MCP_SERVER_PORT=8002
+LOG_LEVEL=INFO
+
+# Notion API
+NOTION_API_BASE_URL=https://api.notion.com/v1
+```
+
 ### User Configuration
 
-User configurations are managed through the `src/notion/config/user_config.py` module. Each user must be configured with:
+User configurations are managed through environment variables with a flattened naming convention. Each user needs:
 
 1. **Telegram Username**: The user's Telegram username (without @)
 2. **Notion Token**: Integration token from Notion workspace
 3. **Parent Page ID**: Notion page or database ID where daily pages will be created
 
-Example configuration:
-
-```python
-USER_CONFIGS = {
-    "your_telegram_username": {
-        "token": "secret_notion_integration_token",
-        "parent_page_id": "your_notion_page_or_database_id"
-    },
-    "another_user": {
-        "token": "another_notion_token",
-        "parent_page_id": "another_parent_page_id"
-    }
-}
-```
-
-### Environment Configuration
-
-Copy `.env.example` to `.env` and configure as needed:
+#### Environment Variable Format
 
 ```bash
-# Server configuration
-MCP_SERVER_PORT=8002
-HOST=0.0.0.0
+NOTION__USER__{USERNAME}__TOKEN=your_notion_integration_token
+NOTION__USER__{USERNAME}__PARENT_PAGE_ID=your_target_page_or_database_id
+```
 
-# Logging
-LOG_LEVEL=INFO
+Where `{USERNAME}` should be replaced with the actual username in UPPERCASE with underscores.
 
-# Notion API
-NOTION_API_BASE_URL=https://api.notion.com/v1
+#### Manual Configuration
+
+Add to your `.env` file:
+
+```bash
+# User: John Doe
+NOTION__USER__JOHN_DOE__TOKEN=secret_notion_integration_token_1
+NOTION__USER__JOHN_DOE__PARENT_PAGE_ID=page_id_or_database_id_1
+
+# User: Jane Smith
+NOTION__USER__JANE_SMITH__TOKEN=secret_notion_integration_token_2
+NOTION__USER__JANE_SMITH__PARENT_PAGE_ID=page_id_or_database_id_2
 ```
 
 ### Notion Integration Setup
@@ -66,7 +71,7 @@ NOTION_API_BASE_URL=https://api.notion.com/v1
 
    - Go to https://www.notion.so/my-integrations
    - Create a new integration
-   - Copy the integration token
+   - Copy the integration token (starts with `secret_`)
 
 2. **Configure Page Access**:
 
@@ -74,8 +79,16 @@ NOTION_API_BASE_URL=https://api.notion.com/v1
    - Copy the page ID from the URL
 
 3. **Add User Configuration**:
-   - Edit `src/notion/config/user_config.py`
-   - Add your username, token, and parent page ID
+
+   - Use the management tools: `make add-notion-user USER="Your Name" TOKEN="..." PAGE_ID="..."`
+   - Or manually add to `.env` file
+
+**Full Deployment Test** (comprehensive validation):
+
+```bash
+cd cattackles/notion/scripts
+python test_deployment.py
+```
 
 ## Requirements
 
@@ -98,11 +111,11 @@ docker build --target development -t notion-cattackle:dev .
 
 # Run development container with volume mounts for live code changes
 docker run -d \
-  --name notion-cattackle-dev \
-  -p 8002:8002 \
-  -v $(pwd)/src:/app/src \
-  -e LOG_LEVEL=DEBUG \
-  notion-cattackle:dev
+--name notion-cattackle-dev \
+-p 8002:8002 \
+-v $(pwd)/src:/app/src \
+-e LOG_LEVEL=DEBUG \
+notion-cattackle:dev
 ```
 
 #### Production Build
@@ -121,32 +134,11 @@ docker run -d \
   notion-cattackle:latest
 ```
 
-### Docker Compose Integration
+**Key Features:**
 
-The cattackle can be integrated into the main Catmandu docker-compose setup:
-
-```yaml
-services:
-  notion-cattackle:
-    build:
-      context: ./cattackles/notion
-      target: production
-    ports:
-      - "8002:8002"
-    environment:
-      - LOG_LEVEL=INFO
-      - MCP_SERVER_PORT=8002
-      - NOTION_API_BASE_URL=https://api.notion.com/v1
-    networks:
-      - catmandu-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 20s
-      retries: 3
-```
+- **Automatic User Config**: All `NOTION__USER__*` variables from `.env` are automatically passed to the container
+- **No Manual Updates**: Adding new users doesn't require changes to `docker-compose.yml`
+- **Scalable**: Works for any number of users
 
 ### Container Configuration
 
@@ -178,7 +170,7 @@ The cattackle includes a comprehensive deployment validation script that tests a
 
 ```bash
 # Run deployment validation tests
-cd cattackles/notion
+cd cattackles/notion/scripts
 python test_deployment.py
 ```
 
@@ -195,7 +187,7 @@ Before deploying the Notion cattackle:
 
 - [ ] Configure user tokens and parent page IDs in `src/notion/config/user_config.py`
 - [ ] Set environment variables in `.env` file (copy from `.env.example`)
-- [ ] Run deployment validation: `python test_deployment.py`
+- [ ] Run deployment validation: `python scripts/test_deployment.py`
 - [ ] Verify all tests pass
 - [ ] Deploy using Docker Compose or container orchestration
 
