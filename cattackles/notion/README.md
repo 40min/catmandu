@@ -19,241 +19,44 @@ A Catmandu cattackle that enables users to save Telegram messages directly to No
   - Creates daily pages automatically if they don't exist
   - Appends content to existing daily pages
 
-## Configuration
+## Quick Start
 
-### Environment Configuration
-
-The cattackle uses these environment variables:
+### 1. User Management
 
 ```bash
-# Server configuration
-MCP_SERVER_PORT=8002
-LOG_LEVEL=INFO
+# List configured users
+make list-notion-users
 
-# Notion API
-NOTION_API_BASE_URL=https://api.notion.com/v1
+# Add a new user
+make add-notion-user USER="John Doe" TOKEN="secret_token_123" PAGE_ID="page_id_456"
+
+# Update user token
+make update-notion-user-token USER="John Doe" TOKEN="new_token"
+
+# Remove user
+make remove-notion-user USER="John Doe"
 ```
 
-### User Configuration
-
-User configurations are managed through environment variables with a flattened naming convention. Each user needs:
-
-1. **Telegram Username**: The user's Telegram username (without @)
-2. **Notion Token**: Integration token from Notion workspace
-3. **Parent Page ID**: Notion page or database ID where daily pages will be created
-
-#### Environment Variable Format
+### 2. Testing & Deployment
 
 ```bash
-NOTION__USER__{USERNAME}__TOKEN=your_notion_integration_token
-NOTION__USER__{USERNAME}__PARENT_PAGE_ID=your_target_page_or_database_id
-```
+# Test configuration
+make test-notion-config
 
-Where `{USERNAME}` should be replaced with the actual username in UPPERCASE with underscores.
+# Start services
+make docker-up
 
-#### Manual Configuration
-
-Add to your `.env` file:
-
-```bash
-# User: John Doe
-NOTION__USER__JOHN_DOE__TOKEN=secret_notion_integration_token_1
-NOTION__USER__JOHN_DOE__PARENT_PAGE_ID=page_id_or_database_id_1
-
-# User: Jane Smith
-NOTION__USER__JANE_SMITH__TOKEN=secret_notion_integration_token_2
-NOTION__USER__JANE_SMITH__PARENT_PAGE_ID=page_id_or_database_id_2
-```
-
-### Notion Integration Setup
-
-1. **Create Notion Integration**:
-
-   - Go to https://www.notion.so/my-integrations
-   - Create a new integration
-   - Copy the integration token (starts with `secret_`)
-
-2. **Configure Page Access**:
-
-   - Share your target parent page with the integration
-   - Copy the page ID from the URL
-
-3. **Add User Configuration**:
-
-   - Use the management tools: `make add-notion-user USER="Your Name" TOKEN="..." PAGE_ID="..."`
-   - Or manually add to `.env` file
-
-**Full Deployment Test** (comprehensive validation):
-
-```bash
-cd cattackles/notion/scripts
-python test_deployment.py
+# Check health
+make docker-health
 ```
 
 ## Requirements
 
 - Python 3.12+
 - Notion integration token with page access
-- Configured workspace path for each user
 - Dependencies: `notion-client==2.2.1`, `mcp`, `fastapi`, `uvicorn`
 
-## Container Deployment
-
-### Building the Container
-
-The notion cattackle supports multi-stage Docker builds optimized for both development and production environments.
-
-#### Development Build
-
-```bash
-# Build development image with debug tools
-docker build --target development -t notion-cattackle:dev .
-
-# Run development container with volume mounts for live code changes
-docker run -d \
---name notion-cattackle-dev \
--p 8002:8002 \
--v $(pwd)/src:/app/src \
--e LOG_LEVEL=DEBUG \
-notion-cattackle:dev
-```
-
-#### Production Build
-
-```bash
-# Build optimized production image
-docker build --target production -t notion-cattackle:latest .
-
-# Run production container
-docker run -d \
-  --name notion-cattackle \
-  -p 8002:8002 \
-  -e LOG_LEVEL=INFO \
-  -e MCP_SERVER_PORT=8002 \
-  --restart unless-stopped \
-  notion-cattackle:latest
-```
-
-**Key Features:**
-
-- **Automatic User Config**: All `NOTION__USER__*` variables from `.env` are automatically passed to the container
-- **No Manual Updates**: Adding new users doesn't require changes to `docker-compose.yml`
-- **Scalable**: Works for any number of users
-
-### Container Configuration
-
-The container configuration is defined in `cattackle.toml` under the `[cattackle.container]` section:
-
-- **Port**: 8002 (MCP server port)
-- **Health Check**: HTTP endpoint at `/health`
-- **Restart Policy**: `unless-stopped`
-- **Network**: `catmandu-network`
-- **User**: Non-root user `cattackle` (UID 1000)
-
-### Environment Variables
-
-- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
-- `MCP_SERVER_PORT`: Port for the MCP server (default: 8002)
-- `NOTION_API_BASE_URL`: Notion API base URL (default: https://api.notion.com/v1)
-
-### Security Features
-
-- Multi-stage build for minimal production image size
-- Non-root user execution for enhanced security
-- Optimized layer caching for faster builds
-- Health checks for container monitoring
-- Proper file permissions and ownership
-
-## Deployment Validation
-
-The cattackle includes a comprehensive deployment validation script that tests all aspects of the configuration and deployment:
-
-```bash
-# Run deployment validation tests
-cd cattackles/notion/scripts
-python test_deployment.py
-```
-
-The validation script tests:
-
-1. **TOML Configuration**: Validates cattackle.toml structure and required fields
-2. **Container Build**: Ensures Docker container builds successfully
-3. **Health Checks**: Verifies container starts and health endpoint responds
-4. **Registry Integration**: Confirms cattackle can be discovered by core system
-
-### Deployment Checklist
-
-Before deploying the Notion cattackle:
-
-- [ ] Configure user tokens and parent page IDs in `src/notion/config/user_config.py`
-- [ ] Set environment variables in `.env` file (copy from `.env.example`)
-- [ ] Run deployment validation: `python scripts/test_deployment.py`
-- [ ] Verify all tests pass
-- [ ] Deploy using Docker Compose or container orchestration
-
-### Production Deployment
-
-#### Using Docker Compose
-
-The cattackle is automatically included in the main Catmandu docker-compose configuration:
-
-```bash
-# Start all services including notion cattackle
-docker-compose up -d
-
-# Check cattackle health
-curl http://localhost:8002/health
-```
-
-#### Manual Container Deployment
-
-```bash
-# Build production image
-docker build --target production -t notion-cattackle:latest cattackles/notion/
-
-# Run container
-docker run -d \
-  --name notion-cattackle \
-  -p 8002:8002 \
-  -e LOG_LEVEL=INFO \
-  -e MCP_SERVER_PORT=8002 \
-  --network catmandu-network \
-  --restart unless-stopped \
-  notion-cattackle:latest
-```
-
-### Monitoring and Troubleshooting
-
-#### Health Monitoring
-
-The cattackle provides a health endpoint for monitoring:
-
-```bash
-# Check health status
-curl http://localhost:8002/health
-
-# Expected response
-{"status":"healthy","service":"notion-cattackle","version":"1.0.0"}
-```
-
-#### Log Monitoring
-
-```bash
-# View container logs
-docker logs notion-cattackle
-
-# Follow logs in real-time
-docker logs -f notion-cattackle
-```
-
-#### Common Issues
-
-1. **Import Errors**: Ensure PYTHONPATH is set to `/app/src` in container
-2. **Health Check Failures**: Verify port 8002 is accessible and server is running
-3. **Registry Discovery Issues**: Confirm cattackle.toml is valid and in correct location
-4. **User Configuration**: Check that users are properly configured in user_config.py
-
-### Version Information
+## Version Information
 
 - **Cattackle Version**: 1.0.0
 - **MCP Transport**: HTTP
@@ -261,4 +64,7 @@ docker logs -f notion-cattackle
 - **Health Endpoint**: `/health`
 - **MCP Endpoint**: `/mcp`
 
-For additional support and troubleshooting, refer to the main Catmandu documentation and architecture specifications.
+For detailed configuration and deployment information, see:
+
+- [Configuration Guide](CONFIGURATION.md) - Setting up Notion integrations and user access
+- [Docker Deployment Guide](../../docs/NOTION_DOCKER_DEPLOYMENT.md) - Production deployment with Docker

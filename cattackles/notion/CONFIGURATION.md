@@ -32,10 +32,6 @@ NOTION__USER__JOHN_DOE__PARENT_PAGE_ID=page_id_or_database_id_1
 # User: jane_smith
 NOTION__USER__JANE_SMITH__TOKEN=secret_notion_integration_token_2
 NOTION__USER__JANE_SMITH__PARENT_PAGE_ID=page_id_or_database_id_2
-
-# User: admin_user
-NOTION__USER__ADMIN_USER__TOKEN=secret_notion_integration_token_3
-NOTION__USER__ADMIN_USER__PARENT_PAGE_ID=page_id_or_database_id_3
 ```
 
 ## Getting Notion Integration Tokens
@@ -60,6 +56,50 @@ NOTION__USER__ADMIN_USER__PARENT_PAGE_ID=page_id_or_database_id_3
 2. Copy the URL - the database ID is the long string before the `?`
 3. Example: `https://notion.so/123abc456def?v=...` → Database ID is `123abc456def`
 
+## User Management Commands
+
+### Adding Users
+
+```bash
+make add-notion-user USER="John Doe" TOKEN="secret_token_123" PAGE_ID="page_id_456"
+```
+
+### Listing Users
+
+```bash
+make list-notion-users
+```
+
+### Updating Users
+
+```bash
+# Update token
+make update-notion-user-token USER="John Doe" TOKEN="new_token"
+
+# Update page ID
+make update-notion-user-page USER="John Doe" PAGE_ID="new_page_id"
+```
+
+### Removing Users
+
+```bash
+make remove-notion-user USER="John Doe"
+```
+
+## Testing Configuration
+
+### Test All Users
+
+```bash
+make test-notion-config
+```
+
+### Test Specific User
+
+```bash
+make test-notion-config-user USER=john_doe
+```
+
 ## Validation
 
 Both `TOKEN` and `PARENT_PAGE_ID` must be provided for a user to be considered authorized. The system will:
@@ -67,42 +107,6 @@ Both `TOKEN` and `PARENT_PAGE_ID` must be provided for a user to be considered a
 - Log discovered users at startup (without sensitive data)
 - Warn about incomplete configurations
 - Reject unauthorized users with helpful error messages
-
-## Testing Configuration
-
-### Unit Tests
-
-The unit tests validate the configuration parsing logic but don't check your actual environment variables:
-
-```bash
-cd cattackles/notion
-uv run pytest tests/test_user_config.py -v
-```
-
-### Full Deployment Test
-
-For comprehensive testing including container build and health checks:
-
-```bash
-cd cattackles/notion/scripts
-python test_deployment.py
-```
-
-This validates the complete deployment configuration including TOML manifest, container build, health endpoints, and registry integration.
-
-## Docker Deployment
-
-The Docker Compose configuration automatically passes all `NOTION__USER__*` environment variables from your `.env` file to the container. This means:
-
-1. **Add users to your `.env` file** using the management script or manually
-2. **Restart the container** to pick up new configurations:
-   ```bash
-   make docker-restart
-   ```
-3. **Test the configuration** works in the container:
-   ```bash
-   make docker-qnap-analyze-chats  # or appropriate docker command
-   ```
 
 ## Security Notes
 
