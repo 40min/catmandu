@@ -120,8 +120,8 @@ def add_user(username, token, parent_page_id):
     write_env_file(lines)
     print(f"✅ Added user '{username}' to .env file")
     print("   Environment variables:")
-    print("   - NOTION__USER__{env_username}__TOKEN")
-    print("   - NOTION__USER__{env_username}__PARENT_PAGE_ID")
+    print(f"   - NOTION__USER__{env_username}__TOKEN")
+    print(f"   - NOTION__USER__{env_username}__PARENT_PAGE_ID")
     return True
 
 

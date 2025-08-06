@@ -15,32 +15,32 @@ test-echo:
 
 test-notion-config:
 	@echo "=== Testing Notion Cattackle Configuration ==="
-	python scripts/manage_notion_users.py test
+	uv run python scripts/manage_notion_users.py test
 
 test-notion-config-user:
 	@echo "=== Testing Notion Configuration for User: $(USER) ==="
-	python scripts/manage_notion_users.py test "$(USER)"
+	uv run python scripts/manage_notion_users.py test "$(USER)"
 
 # Notion user management commands
 list-notion-users:
 	@echo "=== Listing Notion Users ==="
-	@python scripts/manage_notion_users.py list
+	@uv run python scripts/manage_notion_users.py list
 
 add-notion-user:
 	@echo "=== Adding Notion User: $(USER) ==="
-	@python scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)"
+	@uv run python scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)"
 
 update-notion-user-token:
 	@echo "=== Updating Token for Notion User: $(USER) ==="
-	@python scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)"
+	@uv run python scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)"
 
 update-notion-user-page:
 	@echo "=== Updating Page ID for Notion User: $(USER) ==="
-	@python scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)"
+	@uv run python scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)"
 
 remove-notion-user:
 	@echo "=== Removing Notion User: $(USER) ==="
-	@python scripts/manage_notion_users.py remove "$(USER)"
+	@uv run python scripts/manage_notion_users.py remove "$(USER)"
 
 # Show all available commands
 help:
