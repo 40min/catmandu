@@ -15,32 +15,32 @@ test-echo:
 
 test-notion-config:
 	@echo "=== Testing Notion Cattackle Configuration ==="
-	uv run python scripts/manage_notion_users.py test
+	python3 scripts/manage_notion_users.py test || python scripts/manage_notion_users.py test
 
 test-notion-config-user:
 	@echo "=== Testing Notion Configuration for User: $(USER) ==="
-	uv run python scripts/manage_notion_users.py test "$(USER)"
+	python3 scripts/manage_notion_users.py test "$(USER)" || python scripts/manage_notion_users.py test "$(USER)"
 
 # Notion user management commands
 list-notion-users:
 	@echo "=== Listing Notion Users ==="
-	@uv run python scripts/manage_notion_users.py list
+	@python3 scripts/manage_notion_users.py list || python scripts/manage_notion_users.py list
 
 add-notion-user:
 	@echo "=== Adding Notion User: $(USER) ==="
-	@uv run python scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)"
+	@python3 scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)" || python scripts/manage_notion_users.py add "$(USER)" "$(TOKEN)" "$(PAGE_ID)"
 
 update-notion-user-token:
 	@echo "=== Updating Token for Notion User: $(USER) ==="
-	@uv run python scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)"
+	@python3 scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)" || python scripts/manage_notion_users.py update "$(USER)" --token "$(TOKEN)"
 
 update-notion-user-page:
 	@echo "=== Updating Page ID for Notion User: $(USER) ==="
-	@uv run python scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)"
+	@python3 scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)" || python scripts/manage_notion_users.py update "$(USER)" --parent-page-id "$(PAGE_ID)"
 
 remove-notion-user:
 	@echo "=== Removing Notion User: $(USER) ==="
-	@uv run python scripts/manage_notion_users.py remove "$(USER)"
+	@python3 scripts/manage_notion_users.py remove "$(USER)" || python scripts/manage_notion_users.py remove "$(USER)"
 
 # Show all available commands
 help:
