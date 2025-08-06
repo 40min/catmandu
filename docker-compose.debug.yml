@@ -40,3 +40,18 @@ services:
       # Mount source code for live reloading
       - ./cattackles/echo/src:/app/src:ro
     # Use default command but with enhanced environment
+
+  notion-cattackle:
+    build:
+      target: development
+    environment:
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    ports:
+      # Expose MCP port for external debugging
+      - "8002:8002"
+    volumes:
+      # Mount source code for live reloading
+      - ./cattackles/notion/src:/app/src:ro
+    # Use default command but with enhanced environment

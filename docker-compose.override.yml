@@ -41,5 +41,21 @@ services:
     # Enable BuildKit for advanced caching features
     x-build-args:
       BUILDKIT_INLINE_CACHE: 1
+
+  notion-cattackle:
+    build:
+      target: development
+      cache_from:
+        - notion-cattackle:latest
+        - notion-cattackle:deps
+        - notion-cattackle:base
+    volumes:
+      # Mount source code for live reloading
+      - ./cattackles/notion/src:/app/src:ro
+    environment:
+      - LOG_LEVEL=DEBUG
+    # Enable BuildKit for advanced caching features
+    x-build-args:
+      BUILDKIT_INLINE_CACHE: 1
 # Note: UV cache volumes removed to avoid permission issues in development
 # Build-time caching is handled by Docker BuildKit instead

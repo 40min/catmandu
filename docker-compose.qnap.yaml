@@ -14,6 +14,11 @@ services:
       # Use named volume for cattackle logs
       - cattackle_logs:/app/logs
 
+  notion-cattackle:
+    volumes:
+      # Use named volume for cattackle logs
+      - cattackle_logs:/app/logs
+
 volumes:
   cattackle_logs:
     name: catmandu-cattackle-logs

@@ -59,13 +59,19 @@ make docker-clean         # Reset everything
 
 - **Port**: 8000 (exposed externally)
 - **Health Check**: `/health` endpoint
-- **Dependencies**: echo-cattackle service
+- **Dependencies**: echo-cattackle, notion-cattackle services
 
 ### echo-cattackle
 
 - **Port**: 8001 (internal only)
 - **Health Check**: MCP endpoint
 - **Purpose**: Provides echo, ping, and joke commands
+
+### notion-cattackle
+
+- **Port**: 8002 (internal only)
+- **Health Check**: MCP endpoint
+- **Purpose**: Saves Telegram messages to Notion pages organized by date
 
 ## Environment Variables
 
@@ -81,6 +87,7 @@ make docker-clean         # Reset everything
 - `MAX_MESSAGES_PER_CHAT`: Message accumulation limit (default: 100)
 - `MAX_MESSAGE_LENGTH`: Maximum message length (default: 1000)
 - `MCP_SERVER_PORT`: Port for echo cattackle MCP server (default: 8001)
+- `NOTION_TOKEN`: Notion integration token (for notion cattackle)
 
 ## Development
 
@@ -115,6 +122,7 @@ For development with live code reloading:
 Services communicate via the `catmandu-network` bridge network:
 
 - Core application connects to echo-cattackle via `http://echo-cattackle:8001/mcp`
+- Core application connects to notion-cattackle via `http://notion-cattackle:8002/mcp`
 - External access to core application via `localhost:8000`
 
 ## Volumes

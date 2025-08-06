@@ -1,26 +1,75 @@
-**/__pycache__
-**/*.pyc
-**/*.pyo
-**/*.pyd
-**/.Python
-**/env
-**/pip-log.txt
-**/pip-delete-this-directory.txt
-**/.tox
-**/.coverage
-**/.coverage.*
-**/.cache
-**/nosetests.xml
-**/coverage.xml
-**/*.cover
-**/*.log
-**/.git
-**/.mypy_cache
-**/.pytest_cache
-**/.hypothesis
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-.dockerignore
-Dockerfile
+# Virtual environments and environment files
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
 README.md
-.env*
-!.env.example
+*.md
+
+# Tests and development files
+tests/
+*_test.py
+test_*.py
+**/*test*.py
+pytest.ini
+.pytest_cache/
+
+# Development configuration
+cattackle.example.toml
+requirements-test.txt
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
