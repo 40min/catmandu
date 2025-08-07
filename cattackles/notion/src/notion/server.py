@@ -83,7 +83,7 @@ def create_starlette_app(mcp_server: Server, json_response: bool = False) -> Sta
     return Starlette(
         debug=True,
         routes=[
-            Mount("/mcp", app=handle_streamable_http),
+            Mount("/mcp/", app=handle_streamable_http),
             Route("/health", endpoint=handle_health_check, methods=["GET"]),
         ],
         lifespan=lifespan,

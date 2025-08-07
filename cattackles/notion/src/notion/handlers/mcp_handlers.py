@@ -29,7 +29,7 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
 
     Requirements: 1.1, 1.4, 4.1, 4.2, 4.3
     """
-    logger.info("Handling MCP tool call", tool_name=name, arguments=arguments)
+    logger.info("Processing request of type CallToolRequest", tool_name=name, arguments=arguments)
 
     try:
         # Route to appropriate method based on tool name
@@ -41,13 +41,19 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
 
         # Format successful response with proper JSON structure
         response_json = {"data": response_data, "error": ""}
+        response_text = json.dumps(response_json, ensure_ascii=False)
 
-        logger.info("Tool call completed successfully", tool_name=name, response_length=len(response_data))
+        logger.info(
+            "Tool call completed successfully",
+            tool_name=name,
+            response_length=len(response_data),
+            response_json=response_text,
+        )
 
         return [
             types.TextContent(
                 type="text",
-                text=json.dumps(response_json, ensure_ascii=False),
+                text=response_text,
             )
         ]
 
@@ -55,13 +61,20 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
         # Handle validation errors with specific error messages
         error_message = str(e)
         response_json = {"data": "", "error": error_message}
+        response_text = json.dumps(response_json, ensure_ascii=False)
 
-        logger.warning("Tool call validation error", tool_name=name, error=error_message, arguments=arguments)
+        logger.warning(
+            "Tool call validation error",
+            tool_name=name,
+            error=error_message,
+            arguments=arguments,
+            response_json=response_text,
+        )
 
         return [
             types.TextContent(
                 type="text",
-                text=json.dumps(response_json, ensure_ascii=False),
+                text=response_text,
             )
         ]
 
@@ -69,6 +82,7 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
         # Format error response with proper JSON structure for unexpected errors
         error_message = "An unexpected error occurred. Please try again later."
         response_json = {"data": "", "error": error_message}
+        response_text = json.dumps(response_json, ensure_ascii=False)
 
         logger.error(
             "Tool call failed with unexpected error",
@@ -76,12 +90,13 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
             error=str(e),
             error_type=type(e).__name__,
             arguments=arguments,
+            response_json=response_text,
         )
 
         return [
             types.TextContent(
                 type="text",
-                text=json.dumps(response_json, ensure_ascii=False),
+                text=response_text,
             )
         ]
 
@@ -118,7 +133,7 @@ async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) ->
 
     # Additional validation for username format
     if not isinstance(username, str) or len(username.strip()) == 0:
-        logger.warning("Invalid username format in note command", username=username)
+        logger.warning("Invalid username format in note command", username=username, username_type=type(username))
         raise ValueError("Username must be a non-empty string")
 
     logger.debug(

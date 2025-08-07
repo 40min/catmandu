@@ -59,7 +59,7 @@ class NotionCattackle:
         # Check if user is authorized (silent skip if not configured)
         if not is_user_authorized(username):
             self.logger.debug("User not authorized, silently skipping", username=username)
-            return ""  # Silent skip for unconfigured users
+            return "User not configured for Notion integration"  # Return message instead of empty string
 
         # Get user configuration
         user_config = get_user_config(username)
