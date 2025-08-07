@@ -294,10 +294,10 @@ docker-health:
 	@docker compose exec catmandu-core curl -f http://echo-cattackle:8001/health 2>/dev/null && echo " ✓ Echo is healthy" || echo " ✗ Echo is unhealthy"
 
 docker-reset:
-	@echo "=== Resetting development environment ==="
+	@echo "=== Resetting development environment (removing all containers, volumes, and images) ==="
 	docker compose down -v
-	docker compose build
-	docker compose up -d
+	docker compose down --rmi all
+	@echo "Environment reset complete. Use 'make docker-build' to rebuild images."
 
 # Show help for Docker commands
 help-docker:
