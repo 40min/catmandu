@@ -19,15 +19,15 @@ class TestMCPHandlers:
         return cattackle
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_success(self, mock_cattackle):
-        """Test successful to_notion command handling."""
+    async def test_handle_note_success(self, mock_cattackle):
+        """Test successful note command handling."""
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
         arguments = {"text": "Test message content", "username": "testuser", "accumulated_params": ["Previous message"]}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -43,15 +43,15 @@ class TestMCPHandlers:
         )
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_without_accumulated_params(self, mock_cattackle):
-        """Test to_notion command handling without accumulated parameters."""
+    async def test_handle_note_without_accumulated_params(self, mock_cattackle):
+        """Test note command handling without accumulated parameters."""
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
         arguments = {"text": "Test message content", "username": "testuser"}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -65,13 +65,13 @@ class TestMCPHandlers:
         )
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_missing_username(self, mock_cattackle):
-        """Test to_notion command handling with missing username."""
+    async def test_handle_note_missing_username(self, mock_cattackle):
+        """Test note command handling with missing username."""
         # Arrange
         arguments = {"text": "Test message content"}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -83,13 +83,13 @@ class TestMCPHandlers:
         mock_cattackle.save_to_notion.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_missing_text_and_params(self, mock_cattackle):
-        """Test to_notion command handling with missing text and accumulated params."""
+    async def test_handle_note_missing_text_and_params(self, mock_cattackle):
+        """Test note command handling with missing text and accumulated params."""
         # Arrange
         arguments = {"username": "testuser"}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -101,15 +101,15 @@ class TestMCPHandlers:
         mock_cattackle.save_to_notion.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_with_empty_accumulated_params(self, mock_cattackle):
-        """Test to_notion command handling with empty accumulated params list."""
+    async def test_handle_note_with_empty_accumulated_params(self, mock_cattackle):
+        """Test note command handling with empty accumulated params list."""
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
         arguments = {"text": "Test message content", "username": "testuser", "accumulated_params": []}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -123,15 +123,15 @@ class TestMCPHandlers:
         )
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_cattackle_error(self, mock_cattackle):
-        """Test to_notion command handling when cattackle raises an error."""
+    async def test_handle_note_cattackle_error(self, mock_cattackle):
+        """Test note command handling when cattackle raises an error."""
         # Arrange
         mock_cattackle.save_to_notion.side_effect = Exception("Notion API error")
 
         arguments = {"text": "Test message content", "username": "testuser"}
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -156,8 +156,8 @@ class TestMCPHandlers:
         assert "Unknown tool: unknown_tool" in response_data["error"]
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_only_accumulated_params(self, mock_cattackle):
-        """Test to_notion command handling with only accumulated parameters (no immediate text)."""
+    async def test_handle_note_only_accumulated_params(self, mock_cattackle):
+        """Test note command handling with only accumulated parameters (no immediate text)."""
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
@@ -168,7 +168,7 @@ class TestMCPHandlers:
         }
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -184,12 +184,12 @@ class TestMCPHandlers:
         )
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_invalid_username_format(self, mock_cattackle):
-        """Test to_notion command handling with invalid username format."""
+    async def test_handle_note_invalid_username_format(self, mock_cattackle):
+        """Test note command handling with invalid username format."""
         # Test with non-string username
         arguments = {"text": "Test message", "username": 123}
 
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         assert len(result) == 1
         response_data = json.loads(result[0].text)
@@ -199,11 +199,11 @@ class TestMCPHandlers:
         mock_cattackle.save_to_notion.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_handle_to_notion_whitespace_username(self, mock_cattackle):
-        """Test to_notion command handling with whitespace-only username."""
+    async def test_handle_note_whitespace_username(self, mock_cattackle):
+        """Test note command handling with whitespace-only username."""
         arguments = {"text": "Test message", "username": "   "}
 
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         assert len(result) == 1
         response_data = json.loads(result[0].text)
@@ -220,7 +220,7 @@ class TestMCPHandlers:
         mock_cattackle.save_to_notion.side_effect = ValueError("Configuration validation failed")
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1
@@ -236,7 +236,7 @@ class TestMCPHandlers:
         mock_cattackle.save_to_notion.side_effect = RuntimeError("Internal system error with sensitive info")
 
         # Act
-        result = await handle_tool_call(mock_cattackle, "to_notion", arguments)
+        result = await handle_tool_call(mock_cattackle, "note", arguments)
 
         # Assert
         assert len(result) == 1

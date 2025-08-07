@@ -5,7 +5,7 @@ description = "Save Telegram messages to Notion pages organized by date"
 tags = ["productivity", "notion", "storage"]
 
 [cattackle.commands]
-to_notion = { description = "Save message content to a daily Notion page. Supports both immediate parameters and accumulated messages. Usage: /to_notion [message content] or send messages first then /to_notion" }
+note = { description = "Save message content to a daily Notion page. Supports both immediate parameters and accumulated messages. Usage: /notion_note [message content] or send messages first then /notion_note" }
 
 [cattackle.mcp]
 timeout = 30.0

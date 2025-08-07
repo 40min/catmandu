@@ -13,9 +13,9 @@ A Catmandu cattackle that enables users to save Telegram messages directly to No
 
 ## Commands
 
-- `/to_notion [message content]` - Save message content to today's Notion page
-  - Supports immediate text: `/to_notion This is my note`
-  - Supports accumulated messages: Send messages first, then `/to_notion`
+- `/notion_note [message content]` - Save message content to today's Notion page
+  - Supports immediate text: `/notion_note This is my note`
+  - Supports accumulated messages: Send messages first, then `/notion_note`
   - Creates daily pages automatically if they don't exist
   - Appends content to existing daily pages
 

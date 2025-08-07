@@ -13,7 +13,7 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
     Handle MCP tool calls by routing to appropriate cattackle methods.
 
     This function processes incoming MCP tool calls and routes them to the
-    appropriate NotionCattackle methods. It handles the to_notion command
+    appropriate NotionCattackle methods. It handles the note command
     and formats responses according to the MCP protocol.
 
     Args:
@@ -34,8 +34,8 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
     try:
         # Route to appropriate method based on tool name
         match name:
-            case "to_notion":
-                response_data = await _handle_to_notion(cattackle, arguments)
+            case "note":
+                response_data = await _handle_note(cattackle, arguments)
             case _:
                 raise ValueError(f"Unknown tool: {name}")
 
@@ -86,9 +86,9 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
         ]
 
 
-async def _handle_to_notion(cattackle: NotionCattackle, arguments: Dict[str, Any]) -> str:
+async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) -> str:
     """
-    Handle the to_notion command by extracting parameters and calling the core logic.
+    Handle the note command by extracting parameters and calling the core logic.
 
     Args:
         cattackle: The NotionCattackle instance
@@ -109,20 +109,20 @@ async def _handle_to_notion(cattackle: NotionCattackle, arguments: Dict[str, Any
 
     # Validate required parameters
     if not username:
-        logger.warning("Missing username in to_notion command", arguments=arguments)
-        raise ValueError("Username is required for to_notion command")
+        logger.warning("Missing username in note command", arguments=arguments)
+        raise ValueError("Username is required for note command")
 
     if not text and not accumulated_params:
-        logger.warning("Missing content in to_notion command", arguments=arguments)
+        logger.warning("Missing content in note command", arguments=arguments)
         raise ValueError("Either text or accumulated_params must be provided")
 
     # Additional validation for username format
     if not isinstance(username, str) or len(username.strip()) == 0:
-        logger.warning("Invalid username format in to_notion command", username=username)
+        logger.warning("Invalid username format in note command", username=username)
         raise ValueError("Username must be a non-empty string")
 
     logger.debug(
-        "Processing to_notion command",
+        "Processing note command",
         username=username,
         text_length=len(text),
         accumulated_params_count=len(accumulated_params) if accumulated_params else 0,

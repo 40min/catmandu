@@ -5,11 +5,11 @@ def get_tool_definitions() -> list[types.Tool]:
     """Get the list of MCP tool definitions for the notion cattackle."""
     return [
         types.Tool(
-            name="to_notion",
+            name="note",
             description=(
                 "Save message content to a daily Notion page organized by date. "
                 "Supports both immediate parameters and accumulated messages. "
-                "Usage: /to_notion <your message> or send messages first then /to_notion"
+                "Usage: /notion_note <your message> or send messages first then /notion_note"
             ),
             inputSchema={
                 "type": "object",
