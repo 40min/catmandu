@@ -97,7 +97,7 @@ def format_date_for_page_title(date_input: Optional[datetime] = None) -> str:
         date_input: Optional datetime object. If None, uses current UTC time.
 
     Returns:
-        str: Datetime formatted as YYYY-MM-DD HH:MM:SS for page title
+        str: Date formatted as YYYY-MM-DD for page title (without timestamp)
 
     Requirements: 2.1, 2.2
     """
@@ -107,7 +107,7 @@ def format_date_for_page_title(date_input: Optional[datetime] = None) -> str:
         # If no timezone info, assume UTC
         date_input = date_input.replace(tzinfo=timezone.utc)
 
-    return date_input.strftime("%Y-%m-%d %H:%M:%S")
+    return date_input.strftime("%Y-%m-%d")
 
 
 def format_timestamp_for_content(timestamp_input: Optional[datetime] = None) -> str:

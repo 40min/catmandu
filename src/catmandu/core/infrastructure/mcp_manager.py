@@ -80,33 +80,15 @@ class McpService:
                 enhanced_payload["extra"] = {"username": (user_info or {}).get("username", "undefined")}
 
                 self.log.debug(
-                    "Calling cattackle tool",
-                    cattackle=cattackle_name,
-                    command=command,
-                    enhanced_payload=enhanced_payload,
-                    timeout=timeout,
+                    "Sending to cattackle", cattackle=cattackle_name, command=command, payload=enhanced_payload
                 )
 
                 # Call the tool with timeout
                 response = await self.mcp_client.call_tool(session, command, enhanced_payload, timeout)
 
-                self.log.debug(
-                    "Received cattackle response",
-                    cattackle=cattackle_name,
-                    command=command,
-                    response_content_count=len(response.content) if response.content else 0,
-                )
-
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:
                     response_text = response.content[0].text
-
-                    self.log.debug(
-                        "Processing cattackle response text",
-                        cattackle=cattackle_name,
-                        command=command,
-                        response_text=response_text,
-                    )
 
                     # Parse as JSON - all cattackles must return JSON responses
                     try:

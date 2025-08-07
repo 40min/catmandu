@@ -95,8 +95,6 @@ class NotionClientWrapper:
             RequestTimeoutError: If the request times out
         """
         try:
-            self.logger.debug("Searching for page by title", parent_id=parent_id, title=title)
-
             # Search for pages with the specified title
             response = await self.client.search(query=title, filter={"value": "page", "property": "object"})
 
@@ -114,10 +112,7 @@ class NotionClientWrapper:
 
                         if title_content and title_content[0].get("text", {}).get("content") == title:
                             page_id = result["id"]
-                            self.logger.debug("Found page by title", page_id=page_id, title=title)
                             return page_id
-
-            self.logger.debug("Page not found by title", parent_id=parent_id, title=title)
             return None
 
         except APIResponseError as e:
@@ -149,8 +144,6 @@ class NotionClientWrapper:
             RequestTimeoutError: If the request times out
         """
         try:
-            self.logger.debug("Appending content to page", page_id=page_id, content_length=len(content))
-
             # Create a paragraph block with the content
             new_block = {
                 "object": "block",
@@ -160,8 +153,6 @@ class NotionClientWrapper:
 
             # Append the block to the page
             await self.client.blocks.children.append(block_id=page_id, children=[new_block])
-
-            self.logger.debug("Successfully appended content to page", page_id=page_id, content_length=len(content))
 
         except APIResponseError as e:
             self.logger.error(

@@ -24,7 +24,11 @@ class TestMCPHandlers:
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
-        arguments = {"text": "Test message content", "username": "testuser", "accumulated_params": ["Previous message"]}
+        arguments = {
+            "text": "Test message content",
+            "extra": {"username": "testuser"},
+            "accumulated_params": ["Previous message"],
+        }
 
         # Act
         result = await handle_tool_call(mock_cattackle, "note", arguments)
@@ -48,7 +52,7 @@ class TestMCPHandlers:
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
-        arguments = {"text": "Test message content", "username": "testuser"}
+        arguments = {"text": "Test message content", "extra": {"username": "testuser"}}
 
         # Act
         result = await handle_tool_call(mock_cattackle, "note", arguments)
@@ -86,7 +90,7 @@ class TestMCPHandlers:
     async def test_handle_note_missing_text_and_params(self, mock_cattackle):
         """Test note command handling with missing text and accumulated params."""
         # Arrange
-        arguments = {"username": "testuser"}
+        arguments = {"extra": {"username": "testuser"}}
 
         # Act
         result = await handle_tool_call(mock_cattackle, "note", arguments)
@@ -106,7 +110,7 @@ class TestMCPHandlers:
         # Arrange
         mock_cattackle.save_to_notion.return_value = "✅ Message saved to Notion page for 2025-01-15"
 
-        arguments = {"text": "Test message content", "username": "testuser", "accumulated_params": []}
+        arguments = {"text": "Test message content", "extra": {"username": "testuser"}, "accumulated_params": []}
 
         # Act
         result = await handle_tool_call(mock_cattackle, "note", arguments)
@@ -128,7 +132,7 @@ class TestMCPHandlers:
         # Arrange
         mock_cattackle.save_to_notion.side_effect = Exception("Notion API error")
 
-        arguments = {"text": "Test message content", "username": "testuser"}
+        arguments = {"text": "Test message content", "extra": {"username": "testuser"}}
 
         # Act
         result = await handle_tool_call(mock_cattackle, "note", arguments)
@@ -163,7 +167,7 @@ class TestMCPHandlers:
 
         arguments = {
             "text": "",  # Empty text
-            "username": "testuser",
+            "extra": {"username": "testuser"},
             "accumulated_params": ["Accumulated message 1", "Accumulated message 2"],
         }
 
@@ -187,7 +191,7 @@ class TestMCPHandlers:
     async def test_handle_note_invalid_username_format(self, mock_cattackle):
         """Test note command handling with invalid username format."""
         # Test with non-string username
-        arguments = {"text": "Test message", "username": 123}
+        arguments = {"text": "Test message", "extra": {"username": 123}}
 
         result = await handle_tool_call(mock_cattackle, "note", arguments)
 
@@ -201,7 +205,7 @@ class TestMCPHandlers:
     @pytest.mark.asyncio
     async def test_handle_note_whitespace_username(self, mock_cattackle):
         """Test note command handling with whitespace-only username."""
-        arguments = {"text": "Test message", "username": "   "}
+        arguments = {"text": "Test message", "extra": {"username": "   "}}
 
         result = await handle_tool_call(mock_cattackle, "note", arguments)
 
@@ -216,7 +220,7 @@ class TestMCPHandlers:
     async def test_handle_tool_call_value_error_handling(self, mock_cattackle):
         """Test that ValueError is handled separately from other exceptions."""
         # Arrange
-        arguments = {"text": "Test message", "username": "testuser"}
+        arguments = {"text": "Test message", "extra": {"username": "testuser"}}
         mock_cattackle.save_to_notion.side_effect = ValueError("Configuration validation failed")
 
         # Act
@@ -232,7 +236,7 @@ class TestMCPHandlers:
     async def test_handle_tool_call_unexpected_error_masking(self, mock_cattackle):
         """Test that unexpected errors are masked with generic message."""
         # Arrange
-        arguments = {"text": "Test message", "username": "testuser"}
+        arguments = {"text": "Test message", "extra": {"username": "testuser"}}
         mock_cattackle.save_to_notion.side_effect = RuntimeError("Internal system error with sensitive info")
 
         # Act

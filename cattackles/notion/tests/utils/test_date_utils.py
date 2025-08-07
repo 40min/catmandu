@@ -150,28 +150,30 @@ class TestValidateDatetimeFormat:
 class TestFormatDateForPageTitle:
     """Test format_date_for_page_title function."""
 
-    def test_formats_datetime_to_full_timestamp(self):
-        """Test formatting datetime object to full timestamp string."""
+    def test_formats_datetime_to_date_only(self):
+        """Test formatting datetime object to date string (without timestamp)."""
         test_date = datetime(2023, 6, 15, 14, 30, 45, tzinfo=timezone.utc)
         result = format_date_for_page_title(test_date)
 
-        assert result == "2023-06-15 14:30:45"
+        assert result == "2023-06-15"
 
     def test_handles_none_input(self):
-        """Test that None input uses current datetime."""
+        """Test that None input uses current date."""
         result = format_date_for_page_title(None)
 
-        # Since we can't guarantee exact timing, check format and approximate time
-        assert len(result) == 19  # YYYY-MM-DD HH:MM:SS format
-        assert result[4] == "-" and result[7] == "-" and result[10] == " "
-        assert result[13] == ":" and result[16] == ":"
+        # Since we can't guarantee exact timing, check format
+        assert len(result) == 10  # YYYY-MM-DD format
+        assert result[4] == "-" and result[7] == "-"
+
+        # Should be parseable as a date
+        datetime.strptime(result, "%Y-%m-%d")
 
     def test_handles_naive_datetime(self):
         """Test that naive datetime is treated as UTC."""
         naive_date = datetime(2023, 6, 15, 14, 30, 45)
         result = format_date_for_page_title(naive_date)
 
-        assert result == "2023-06-15 14:30:45"
+        assert result == "2023-06-15"
 
     def test_handles_different_timezones(self):
         """Test that different timezones are handled correctly."""
@@ -182,7 +184,7 @@ class TestFormatDateForPageTitle:
         test_date = datetime(2023, 6, 15, 14, 30, 45, tzinfo=other_tz)
 
         result = format_date_for_page_title(test_date)
-        assert result == "2023-06-15 14:30:45"
+        assert result == "2023-06-15"
 
 
 class TestFormatTimestampForContent:

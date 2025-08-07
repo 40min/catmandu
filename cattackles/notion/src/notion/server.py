@@ -38,9 +38,7 @@ def create_mcp_server(cattackle: NotionCattackle) -> Server:
 
     @app.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[types.ContentBlock]:
-        logger.debug("MCP server received tool call", tool_name=name, arguments=arguments)
         result = await handle_tool_call(cattackle, name, arguments)
-        logger.debug("MCP server returning tool result", tool_name=name, result_count=len(result))
         return result
 
     @app.list_tools()

@@ -117,19 +117,12 @@ async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) ->
 
     Requirements: 1.1, 1.4
     """
-    logger.debug("Received note command arguments", arguments=arguments)
+    logger.debug("Notion cattackle received", arguments=arguments)
 
     # Extract required parameters
     text = arguments.get("text", "")
     username = arguments.get("extra", {}).get("username", "")
     accumulated_params = arguments.get("accumulated_params", [])
-
-    logger.debug(
-        "Extracted parameters",
-        text_length=len(text),
-        username=username,
-        accumulated_params_count=len(accumulated_params) if accumulated_params else 0,
-    )
 
     # Validate required parameters
     if not username:
@@ -145,18 +138,9 @@ async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) ->
         logger.warning("Invalid username format in note command", username=username, username_type=type(username))
         raise ValueError("Username must be a non-empty string")
 
-    logger.debug(
-        "Processing note command with validated parameters",
-        username=username,
-        text_length=len(text),
-        accumulated_params_count=len(accumulated_params) if accumulated_params else 0,
-    )
-
     # Call the core cattackle logic
     response = await cattackle.save_to_notion(
         username=username, message_content=text, accumulated_params=accumulated_params if accumulated_params else None
     )
-
-    logger.debug("Note command completed", username=username, response_length=len(response))
 
     return response

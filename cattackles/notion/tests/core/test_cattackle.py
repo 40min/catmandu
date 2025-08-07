@@ -1,7 +1,6 @@
 """Tests for the NotionCattackle core business logic."""
 
 import unittest.mock
-from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -35,15 +34,14 @@ class TestNotionCattackle:
         username = "testuser"
         message_content = "Test message content"
         expected_page_id = "new_page_id_123"
-        expected_date = datetime.now().strftime("%Y-%m-%d")
+        expected_date = "2025-08-05"
 
         # Mock user configuration
         with (
             patch("notion.core.cattackle.is_user_authorized", return_value=True),
             patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
             patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
-            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
-            patch("notion.core.cattackle.get_current_date_iso", return_value=expected_date),
+            patch("notion.core.cattackle.format_date_for_page_title", return_value=expected_date),
         ):
 
             # Mock page doesn't exist, so create new one
@@ -56,13 +54,11 @@ class TestNotionCattackle:
             # Verify the result
             assert result == f"✅ Message saved to Notion page for {expected_date}"
 
-            # Verify method calls use full datetime for page operations
+            # Verify method calls use date format for page operations
             mock_notion_client.find_page_by_title.assert_called_once_with(
-                sample_user_config["parent_page_id"], "2025-08-05 10:30:45"
+                sample_user_config["parent_page_id"], expected_date
             )
-            mock_notion_client.create_page.assert_called_once_with(
-                sample_user_config["parent_page_id"], "2025-08-05 10:30:45"
-            )
+            mock_notion_client.create_page.assert_called_once_with(sample_user_config["parent_page_id"], expected_date)
             mock_notion_client.append_content_to_page.assert_called_once()
 
             # Verify the content includes timestamp
@@ -77,15 +73,14 @@ class TestNotionCattackle:
         username = "testuser"
         message_content = "Test message content"
         existing_page_id = "existing_page_id_456"
-        expected_date = datetime.now().strftime("%Y-%m-%d")
+        expected_date = "2025-08-05"
 
         # Mock user configuration
         with (
             patch("notion.core.cattackle.is_user_authorized", return_value=True),
             patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
             patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
-            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
-            patch("notion.core.cattackle.get_current_date_iso", return_value=expected_date),
+            patch("notion.core.cattackle.format_date_for_page_title", return_value=expected_date),
         ):
 
             # Mock page exists
@@ -97,9 +92,9 @@ class TestNotionCattackle:
             # Verify the result
             assert result == f"✅ Message saved to Notion page for {expected_date}"
 
-            # Verify method calls use full datetime
+            # Verify method calls use date format
             mock_notion_client.find_page_by_title.assert_called_once_with(
-                sample_user_config["parent_page_id"], "2025-08-05 10:30:45"
+                sample_user_config["parent_page_id"], expected_date
             )
             mock_notion_client.create_page.assert_not_called()  # Should not create new page
             mock_notion_client.append_content_to_page.assert_called_once_with(existing_page_id, unittest.mock.ANY)
@@ -117,8 +112,7 @@ class TestNotionCattackle:
             patch("notion.core.cattackle.is_user_authorized", return_value=True),
             patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
             patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
-            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
-            patch("notion.core.cattackle.get_current_date_iso", return_value="2025-08-05"),
+            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05"),
         ):
 
             # Mock page exists
@@ -144,8 +138,8 @@ class TestNotionCattackle:
         with patch("notion.core.cattackle.is_user_authorized", return_value=False):
             result = await cattackle.save_to_notion(username, message_content)
 
-            # Should return empty string for silent skip
-            assert result == ""
+            # Should return message for unauthorized user
+            assert result == "User not configured for Notion integration"
 
     @pytest.mark.asyncio
     async def test_save_to_notion_config_error(self, cattackle):
@@ -289,8 +283,7 @@ class TestNotionCattackle:
             patch("notion.core.cattackle.is_user_authorized", return_value=True),
             patch("notion.core.cattackle.get_user_config", return_value=sample_user_config),
             patch("notion.core.cattackle.NotionClientWrapper", return_value=mock_notion_client),
-            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05 10:30:45"),
-            patch("notion.core.cattackle.get_current_date_iso", return_value="2025-08-05"),
+            patch("notion.core.cattackle.format_date_for_page_title", return_value="2025-08-05"),
         ):
 
             mock_notion_client.find_page_by_title.return_value = "existing_page"
