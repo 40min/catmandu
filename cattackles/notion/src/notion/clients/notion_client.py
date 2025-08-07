@@ -104,32 +104,32 @@ class NotionClientWrapper:
         cached_page_id = self._page_cache.get(cache_key)
 
         if not cached_page_id:
-            self.logger.debug("Page not found in cache", parent_id=parent_id, title=title)
+            self.logger.info("Page not found in cache", parent_id=parent_id, title=title)
             return None
 
-        self.logger.debug("Found page in cache, verifying existence", page_id=cached_page_id, title=title)
+        self.logger.info("Found page in cache, verifying existence", page_id=cached_page_id, title=title)
 
         # Verify the cached page still exists
         try:
             await self.client.pages.retrieve(page_id=cached_page_id)
-            self.logger.debug("Cache hit: page verified to exist", page_id=cached_page_id, title=title)
+            self.logger.info("Cache hit: page verified to exist", page_id=cached_page_id, title=title)
             return cached_page_id
         except APIResponseError as e:
             if e.status == 404:
                 # Page no longer exists, remove from cache
-                self.logger.debug(
+                self.logger.info(
                     "Cached page no longer exists, removing from cache", page_id=cached_page_id, title=title
                 )
                 del self._page_cache[cache_key]
                 return None
             else:
                 # Other API error, log but don't remove from cache
-                self.logger.debug(
+                self.logger.info(
                     "Error verifying cached page existence", error=str(e), page_id=cached_page_id, title=title
                 )
                 return None
         except Exception as e:
-            self.logger.debug(
+            self.logger.info(
                 "Unexpected error verifying cached page", error=str(e), page_id=cached_page_id, title=title
             )
             return None
@@ -146,14 +146,12 @@ class NotionClientWrapper:
             Optional[str]: Page ID if found via search, None otherwise
         """
         try:
-            self.logger.debug("Searching for page via search API", parent_id=parent_id, title=title)
+            self.logger.info("Searching for page via search API", parent_id=parent_id, title=title)
 
             response = await self.client.search(query=title, filter={"value": "page", "property": "object"})
             results = response.get("results", [])
 
-            self.logger.debug(
-                "Search API returned results", parent_id=parent_id, title=title, result_count=len(results)
-            )
+            self.logger.info("Search API returned results", parent_id=parent_id, title=title, result_count=len(results))
 
             # Look for exact title match in the results
             for result in results:
@@ -170,7 +168,7 @@ class NotionClientWrapper:
 
                         if title_content and title_content[0].get("text", {}).get("content") == title:
                             page_id = result["id"]
-                            self.logger.debug("Found page via search API", page_id=page_id, title=title)
+                            self.logger.info("Found page via search API", page_id=page_id, title=title)
 
                             # Cache the result
                             cache_key = self._get_cache_key(parent_id, title)
@@ -178,17 +176,17 @@ class NotionClientWrapper:
 
                             return page_id
 
-            self.logger.debug("Page not found via search API", parent_id=parent_id, title=title)
+            self.logger.info("Page not found via search API", parent_id=parent_id, title=title)
             return None
 
         except APIResponseError as e:
-            self.logger.debug("Search API failed", error=str(e), status_code=e.status, parent_id=parent_id, title=title)
+            self.logger.info("Search API failed", error=str(e), status_code=e.status, parent_id=parent_id, title=title)
             raise
         except RequestTimeoutError as e:
-            self.logger.debug("Search API timeout", error=str(e), parent_id=parent_id, title=title)
+            self.logger.info("Search API timeout", error=str(e), parent_id=parent_id, title=title)
             raise
         except Exception as e:
-            self.logger.debug("Unexpected error in search API", error=str(e), parent_id=parent_id, title=title)
+            self.logger.info("Unexpected error in search API", error=str(e), parent_id=parent_id, title=title)
             raise
 
     async def _find_page_via_listing(self, parent_id: str, title: str) -> Optional[str]:
@@ -203,12 +201,12 @@ class NotionClientWrapper:
             Optional[str]: Page ID if found via listing, None otherwise
         """
         try:
-            self.logger.debug("Listing child pages to find page", parent_id=parent_id, title=title)
+            self.logger.info("Listing child pages to find page", parent_id=parent_id, title=title)
 
             children_response = await self.client.blocks.children.list(block_id=parent_id)
             results = children_response.get("results", [])
 
-            self.logger.debug(
+            self.logger.info(
                 "Child listing returned results", parent_id=parent_id, title=title, result_count=len(results)
             )
 
@@ -217,7 +215,7 @@ class NotionClientWrapper:
                     child_title = child.get("child_page", {}).get("title", "")
                     if child_title == title:
                         page_id = child["id"]
-                        self.logger.debug("Found page via child listing", page_id=page_id, title=title)
+                        self.logger.info("Found page via child listing", page_id=page_id, title=title)
 
                         # Cache the result
                         cache_key = self._get_cache_key(parent_id, title)
@@ -225,23 +223,23 @@ class NotionClientWrapper:
 
                         return page_id
 
-            self.logger.debug("Page not found via child listing", parent_id=parent_id, title=title)
+            self.logger.info("Page not found via child listing", parent_id=parent_id, title=title)
             return None
 
         except APIResponseError as e:
-            self.logger.debug(
+            self.logger.info(
                 "Child listing failed", error=str(e), status_code=e.status, parent_id=parent_id, title=title
             )
             # If direct listing fails (e.g., parent is a database), this is expected
             if e.status == 400:
-                self.logger.debug("Child listing not supported for this parent type", parent_id=parent_id, title=title)
+                self.logger.info("Child listing not supported for this parent type", parent_id=parent_id, title=title)
                 return None
             raise
         except RequestTimeoutError as e:
-            self.logger.debug("Child listing timeout", error=str(e), parent_id=parent_id, title=title)
+            self.logger.info("Child listing timeout", error=str(e), parent_id=parent_id, title=title)
             raise
         except Exception as e:
-            self.logger.debug("Unexpected error in child listing", error=str(e), parent_id=parent_id, title=title)
+            self.logger.info("Unexpected error in child listing", error=str(e), parent_id=parent_id, title=title)
             raise
 
     async def find_page_by_title(self, parent_id: str, title: str) -> Optional[str]:
@@ -265,7 +263,7 @@ class NotionClientWrapper:
             RequestTimeoutError: If the request times out
         """
         try:
-            self.logger.debug("Starting page search", parent_id=parent_id, title=title)
+            self.logger.info("Starting page search", parent_id=parent_id, title=title)
 
             # Stage 1: Check cache
             page_id = await self._find_page_in_cache(parent_id, title)
