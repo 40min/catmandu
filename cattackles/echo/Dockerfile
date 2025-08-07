@@ -57,7 +57,7 @@ ENV LOG_LEVEL=DEBUG \
 EXPOSE 8001
 
 # Development command with debug logging
-CMD ["python", "src/server.py", "--port", "8001", "--log-level", "DEBUG"]
+CMD ["python", "src/echo/server.py", "--port", "8001", "--log-level", "DEBUG"]
 
 # Production stage - minimal and optimized
 FROM base AS production
@@ -87,4 +87,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # Production command with optimized settings
-CMD ["python", "src/server.py", "--port", "8001", "--log-level", "INFO"]
+CMD ["python", "src/echo/server.py", "--port", "8001", "--log-level", "INFO"]
