@@ -51,7 +51,8 @@ USER cattackle
 ENV LOG_LEVEL=DEBUG \
     MCP_SERVER_PORT=8001 \
     GEMINI_API_KEY="" \
-    GEMINI_MODEL=""
+    GEMINI_MODEL="" \
+    PYTHONPATH=/app/src
 
 # Expose the MCP server port
 EXPOSE 8001
@@ -77,7 +78,7 @@ ENV LOG_LEVEL=INFO \
     MCP_SERVER_PORT=8001 \
     GEMINI_API_KEY="" \
     GEMINI_MODEL="" \
-    PYTHONPATH=/app
+    PYTHONPATH=/app/src
 
 # Expose the MCP server port
 EXPOSE 8001
