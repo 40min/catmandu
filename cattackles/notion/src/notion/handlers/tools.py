@@ -23,12 +23,18 @@ def get_tool_definitions() -> list[types.Tool]:
                         "items": {"type": "string"},
                         "description": "List of accumulated messages (optional)",
                     },
-                    "username": {
-                        "type": "string",
-                        "description": "Telegram username of the user making the request",
+                    "extra": {
+                        "type": "object",
+                        "properties": {
+                            "username": {
+                                "type": "string",
+                                "description": "Telegram username of the user making the request",
+                            }
+                        },
+                        "required": ["username"],
                     },
                 },
-                "required": ["text", "username"],
+                "required": ["extra"],
             },
         ),
     ]

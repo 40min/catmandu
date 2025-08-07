@@ -13,4 +13,4 @@ max_retries = 3
 
 [cattackle.mcp.transport]
 type = "http"
-url = "http://notion-cattackle:8002/mcp"
+url = "http://notion-cattackle:8002/mcp/"

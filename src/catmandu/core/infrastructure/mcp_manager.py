@@ -15,7 +15,7 @@ from mcp import ClientSession
 from pydantic import ValidationError
 
 from catmandu.core.clients.mcp import McpClient
-from catmandu.core.errors import CattackleExecutionError
+from catmandu.core.errors import CattackleExecutionError, CattackleResponseError, CattackleValidationError
 from catmandu.core.models import CattackleConfig, CattackleResponse
 
 
@@ -62,6 +62,8 @@ class McpService:
             cattackle=cattackle_name,
             command=command,
             transport_type=transport_config.type,
+            payload=payload,
+            user_info=user_info,
         )
 
         # Implement retry logic
@@ -75,14 +77,36 @@ class McpService:
                 # Enhance payload with extra information for all cattackles
                 enhanced_payload = payload.copy()
                 # Add extra information that cattackles can use if needed
-                enhanced_payload["extra"] = {"username": user_info.get("username", "undefined")}
+                enhanced_payload["extra"] = {"username": (user_info or {}).get("username", "undefined")}
+
+                self.log.debug(
+                    "Calling cattackle tool",
+                    cattackle=cattackle_name,
+                    command=command,
+                    enhanced_payload=enhanced_payload,
+                    timeout=timeout,
+                )
 
                 # Call the tool with timeout
                 response = await self.mcp_client.call_tool(session, command, enhanced_payload, timeout)
 
+                self.log.debug(
+                    "Received cattackle response",
+                    cattackle=cattackle_name,
+                    command=command,
+                    response_content_count=len(response.content) if response.content else 0,
+                )
+
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:
                     response_text = response.content[0].text
+
+                    self.log.debug(
+                        "Processing cattackle response text",
+                        cattackle=cattackle_name,
+                        command=command,
+                        response_text=response_text,
+                    )
 
                     # Parse as JSON - all cattackles must return JSON responses
                     try:
@@ -98,9 +122,15 @@ class McpService:
                             response=response_text,
                             error=str(e),
                         )
-                        raise CattackleExecutionError(
-                            f"Cattackle '{cattackle_name}' returned invalid JSON response: {e}"
-                        ) from e
+                        # Check if this looks like a validation error (should not be retried)
+                        if "validation error" in response_text.lower() or "required property" in response_text.lower():
+                            raise CattackleValidationError(
+                                f"Cattackle '{cattackle_name}' input validation failed: {response_text}"
+                            ) from e
+                        else:
+                            raise CattackleResponseError(
+                                f"Cattackle '{cattackle_name}' returned invalid JSON response: {e}"
+                            ) from e
 
                 return CattackleResponse(data="", error="Empty response from cattackle")
 
@@ -114,6 +144,16 @@ class McpService:
                     retry=retry_count + 1,
                     max_retries=max_retries,
                 )
+            except (CattackleValidationError, CattackleResponseError) as e:
+                # These errors should not be retried - they indicate permanent issues
+                self.log.error(
+                    "Cattackle execution failed with non-retryable error",
+                    cattackle=cattackle_name,
+                    command=command,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+                raise e
             except ValidationError as e:
                 # Validation errors are internal and shouldn't be retried
                 self.log.error(
