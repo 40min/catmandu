@@ -35,7 +35,7 @@ class McpService:
         self._active_contexts: Dict[str, Tuple[AsyncExitStack, ClientSession]] = {}
 
     async def execute_cattackle(
-        self, cattackle_config: CattackleConfig, command: str, payload: dict
+        self, cattackle_config: CattackleConfig, command: str, payload: dict, user_info: dict
     ) -> CattackleResponse:
         """
         Execute a command on a cattackle with the given payload.
@@ -44,6 +44,7 @@ class McpService:
             cattackle_config: Configuration for the cattackle
             command: Command name to execute
             payload: Data to send to the cattackle
+            user_info: User information to include for cattackles that need it
 
         Returns:
             CattackleResponse with the result data
@@ -71,8 +72,13 @@ class McpService:
             try:
                 session = await self._get_or_create_session(cattackle_config)
 
+                # Enhance payload with extra information for all cattackles
+                enhanced_payload = payload.copy()
+                # Add extra information that cattackles can use if needed
+                enhanced_payload["extra"] = {"username": user_info.get("username", "undefined")}
+
                 # Call the tool with timeout
-                response = await self.mcp_client.call_tool(session, command, payload, timeout)
+                response = await self.mcp_client.call_tool(session, command, enhanced_payload, timeout)
 
                 # Extract the response data from the first content item
                 if response.content and len(response.content) > 0:

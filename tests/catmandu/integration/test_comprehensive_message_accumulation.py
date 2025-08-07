@@ -1069,7 +1069,7 @@ class TestEchoCommandEquivalentFunctionality:
         chat_id = 12345
 
         # Mock the echo cattackle to return the expected multi-parameter format
-        def mock_echo_response(cattackle_config, command, payload):
+        def mock_echo_response(cattackle_config, command, payload, user_info=None):
             # Simulate the enhanced echo command behavior with multiple parameters
             accumulated_params = payload.get("accumulated_params", [])
             if accumulated_params and len(accumulated_params) > 1:
@@ -1154,7 +1154,7 @@ class TestEchoCommandEquivalentFunctionality:
         chat_id = 12345
 
         # Mock the echo cattackle to return the expected single-parameter format
-        def mock_echo_response(cattackle_config, command, payload):
+        def mock_echo_response(cattackle_config, command, payload, user_info=None):
             accumulated_params = payload.get("accumulated_params", [])
             if accumulated_params and len(accumulated_params) == 1:
                 response_text = f"Echo: {accumulated_params[0]}"

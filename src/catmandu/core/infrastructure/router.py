@@ -137,15 +137,14 @@ class MessageRouter:
             # Extract accumulated parameters and clear accumulator
             accumulated_params = self._accumulator_manager.get_all_parameters_and_clear(chat_id)
 
-            # Create simplified payload with accumulated parameters and user info
+            # Create simplified payload with accumulated parameters
             payload = {
                 "text": payload_str,
                 "accumulated_params": accumulated_params,
-                "username": user_info.get("username", ""),
             }
 
             response = await self._mcp_service.execute_cattackle(
-                cattackle_config=cattackle_config, command=command, payload=payload
+                cattackle_config=cattackle_config, command=command, payload=payload, user_info=user_info
             )
 
             response_text = str(response.data)

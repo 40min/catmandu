@@ -119,7 +119,7 @@ async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) ->
     """
     # Extract required parameters
     text = arguments.get("text", "")
-    username = arguments.get("username", "")
+    username = arguments.get("extra", {}).get("username", "")
     accumulated_params = arguments.get("accumulated_params", [])
 
     # Validate required parameters

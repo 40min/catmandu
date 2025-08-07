@@ -72,16 +72,19 @@ async def test_execute_cattackle_success(mcp_service, mcp_client, cattackle_conf
     # Mock _get_or_create_session to return our mock session
     with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
         response = await mcp_service.execute_cattackle(
-            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            cattackle_config=cattackle_config,
+            command="echo",
+            payload={"message": "test"},
+            user_info={"user_id": "XXX"},  # Mock user info for testing
         )
 
         # Verify response is parsed correctly
         assert response.data == "success"
         assert response.error is None
 
-        # Verify client was called correctly (without payload wrapping)
+        # Verify client was called correctly (with extra field added)
         mcp_client.call_tool.assert_called_once_with(
-            mock_session, "echo", {"message": "test"}, cattackle_config.mcp.timeout
+            mock_session, "echo", {"message": "test", "extra": {"username": "undefined"}}, cattackle_config.mcp.timeout
         )
 
 
@@ -105,7 +108,7 @@ async def test_execute_cattackle_timeout_with_retry(mcp_service, mcp_client, cat
         patch("catmandu.core.infrastructure.mcp_manager.asyncio.sleep"),
     ):  # Mock sleep in the actual module
         response = await mcp_service.execute_cattackle(
-            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}, user_info=None
         )
 
         # Verify response from second (successful) call is parsed correctly
@@ -132,7 +135,7 @@ async def test_execute_cattackle_all_retries_fail(mcp_service, mcp_client, catta
     ):  # Mock sleep in the actual module
         with pytest.raises(CattackleExecutionError, match="timed out"):
             await mcp_service.execute_cattackle(
-                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}, user_info=None
             )
 
         # Verify client was called max_retries + 1 times (initial + retries)
@@ -279,7 +282,7 @@ async def test_execute_cattackle_non_json_response(mcp_service, mcp_client, catt
     with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
         with pytest.raises(CattackleExecutionError, match="returned invalid JSON response"):
             await mcp_service.execute_cattackle(
-                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+                cattackle_config=cattackle_config, command="echo", payload={"message": "test"}, user_info=None
             )
 
 
@@ -297,7 +300,7 @@ async def test_execute_cattackle_json_response(mcp_service, mcp_client, cattackl
     # Mock _get_or_create_session to return our mock session
     with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
         response = await mcp_service.execute_cattackle(
-            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}, user_info=None
         )
 
     # Verify response is parsed correctly
@@ -319,7 +322,7 @@ async def test_execute_cattackle_json_error_response(mcp_service, mcp_client, ca
     # Mock _get_or_create_session to return our mock session
     with patch.object(mcp_service, "_get_or_create_session", return_value=mock_session):
         response = await mcp_service.execute_cattackle(
-            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}
+            cattackle_config=cattackle_config, command="echo", payload={"message": "test"}, user_info=None
         )
 
     # Verify error response is parsed correctly
