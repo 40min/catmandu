@@ -123,6 +123,9 @@ class NotionCattackle:
         """
         Get or create a daily page for the specified date.
 
+        Uses a retry mechanism to handle race conditions where multiple requests
+        might try to create the same page simultaneously.
+
         Args:
             notion_client: Initialized Notion client wrapper
             parent_page_id: Parent page or database ID where the daily page should be created
@@ -136,51 +139,82 @@ class NotionCattackle:
 
         Requirements: 2.1, 2.2
         """
-        try:
-            # First, try to find existing page with today's date
-            existing_page_id = await notion_client.find_page_by_title(parent_page_id, date_str)
+        max_retries = 2
 
-            if existing_page_id:
-                return existing_page_id
+        for attempt in range(max_retries + 1):
+            try:
+                # First, try to find existing page with today's date
+                existing_page_id = await notion_client.find_page_by_title(parent_page_id, date_str)
 
-            # Page doesn't exist, create a new one
-            self.logger.info("Creating new daily page", parent_page_id=parent_page_id, date=date_str)
-            page_id = await notion_client.create_page(parent_page_id, date_str)
+                if existing_page_id:
+                    self.logger.info(
+                        "Found existing daily page", page_id=existing_page_id, date=date_str, attempt=attempt + 1
+                    )
+                    return existing_page_id
 
-            self.logger.info("Successfully created daily page", page_id=page_id, date=date_str)
-            return page_id
+                # Page doesn't exist, create a new one
+                self.logger.info(
+                    "Creating new daily page", parent_page_id=parent_page_id, date=date_str, attempt=attempt + 1
+                )
+                page_id = await notion_client.create_page(parent_page_id, date_str)
 
-        except APIResponseError as e:
-            # Handle specific Notion API errors with user-friendly messages
-            error_msg = self._handle_api_error(e)
-            self.logger.error(
-                "Notion API error during page creation/lookup",
-                parent_page_id=parent_page_id,
-                date=date_str,
-                error=str(e),
-                status_code=getattr(e, "status", "unknown"),
-                error_code=getattr(e, "code", "unknown"),
-            )
-            raise Exception(error_msg)
+                self.logger.info("Successfully created daily page", page_id=page_id, date=date_str)
+                return page_id
 
-        except RequestTimeoutError as e:
-            self.logger.error(
-                "Request timeout during page creation/lookup",
-                parent_page_id=parent_page_id,
-                date=date_str,
-                error=str(e),
-            )
-            raise Exception("❌ Request timed out. Please try again later.")
+            except APIResponseError as e:
+                # If we get a conflict error (page already exists), retry the search
+                if getattr(e, "status", None) == 409 and attempt < max_retries:
+                    self.logger.info("Page creation conflict, retrying search", date=date_str, attempt=attempt + 1)
+                    continue
 
-        except Exception as e:
-            self.logger.error(
-                "Unexpected error during page creation/lookup",
-                parent_page_id=parent_page_id,
-                date=date_str,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise Exception("❌ An unexpected error occurred. Please try again later.")
+                # Handle other specific Notion API errors with user-friendly messages
+                error_msg = self._handle_api_error(e)
+                self.logger.error(
+                    "Notion API error during page creation/lookup",
+                    parent_page_id=parent_page_id,
+                    date=date_str,
+                    error=str(e),
+                    status_code=getattr(e, "status", "unknown"),
+                    error_code=getattr(e, "code", "unknown"),
+                    attempt=attempt + 1,
+                )
+                raise Exception(error_msg)
+
+            except RequestTimeoutError as e:
+                self.logger.error(
+                    "Request timeout during page creation/lookup",
+                    parent_page_id=parent_page_id,
+                    date=date_str,
+                    error=str(e),
+                    attempt=attempt + 1,
+                )
+                raise Exception("❌ Request timed out. Please try again later.")
+
+            except Exception as e:
+                # For unexpected errors, retry once in case it was a transient issue
+                if attempt < max_retries:
+                    self.logger.warning(
+                        "Unexpected error during page creation/lookup, retrying",
+                        parent_page_id=parent_page_id,
+                        date=date_str,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        attempt=attempt + 1,
+                    )
+                    continue
+
+                self.logger.error(
+                    "Unexpected error during page creation/lookup after retries",
+                    parent_page_id=parent_page_id,
+                    date=date_str,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    attempt=attempt + 1,
+                )
+                raise Exception("❌ An unexpected error occurred. Please try again later.")
+
+        # This should never be reached, but just in case
+        raise Exception("❌ Failed to get or create daily page after all retries.")
 
     async def _append_message_to_page(self, notion_client: NotionClientWrapper, page_id: str, content: str) -> None:
         """

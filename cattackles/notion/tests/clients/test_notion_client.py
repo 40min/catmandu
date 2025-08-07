@@ -42,6 +42,10 @@ class TestNotionClientWrapper:
             assert call_args.kwargs["properties"]["title"]["title"][0]["text"]["content"] == "Test Page"
             assert "children" not in call_args.kwargs
 
+            # Verify the page was cached
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Test Page")
+            assert notion_wrapper._page_cache[cache_key] == "test_page_id_123"
+
         @pytest.mark.asyncio
         async def test_create_page_success_with_content(self, notion_wrapper, mock_notion_client):
             """Test successful page creation with initial content."""
@@ -65,6 +69,10 @@ class TestNotionClientWrapper:
             assert len(children) == 1
             assert children[0]["type"] == "paragraph"
             assert children[0]["paragraph"]["rich_text"][0]["text"]["content"] == "Initial content here"
+
+            # Verify the page was cached
+            cache_key = notion_wrapper._get_cache_key("parent_456", "Test Page with Content")
+            assert notion_wrapper._page_cache[cache_key] == "test_page_id_456"
 
         @pytest.mark.asyncio
         async def test_create_page_api_error(self, notion_wrapper, mock_notion_client):
@@ -105,10 +113,27 @@ class TestNotionClientWrapper:
         """Test cases for find_page_by_title method."""
 
         @pytest.mark.asyncio
-        async def test_find_page_by_title_found(self, notion_wrapper, mock_notion_client):
-            """Test successful page finding by title."""
-            # Arrange
-            mock_response = {
+        async def test_find_page_by_title_found_via_cache(self, notion_wrapper, mock_notion_client):
+            """Test successful page finding via cache."""
+            # Arrange - populate cache first
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Daily Notes 2025-01-15")
+            notion_wrapper._page_cache[cache_key] = "cached_page_id"
+
+            # Mock page verification
+            mock_notion_client.pages.retrieve = AsyncMock(return_value={"id": "cached_page_id"})
+
+            # Act
+            result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Daily Notes 2025-01-15")
+
+            # Assert
+            assert result == "cached_page_id"
+            mock_notion_client.pages.retrieve.assert_called_once_with(page_id="cached_page_id")
+
+        @pytest.mark.asyncio
+        async def test_find_page_by_title_cache_miss_found_via_search(self, notion_wrapper, mock_notion_client):
+            """Test successful page finding via search API when not in cache."""
+            # Arrange - search succeeds
+            mock_search_response = {
                 "results": [
                     {
                         "object": "page",
@@ -118,7 +143,7 @@ class TestNotionClientWrapper:
                     }
                 ]
             }
-            mock_notion_client.search = AsyncMock(return_value=mock_response)
+            mock_notion_client.search = AsyncMock(return_value=mock_search_response)
 
             # Act
             result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Daily Notes 2025-01-15")
@@ -128,25 +153,55 @@ class TestNotionClientWrapper:
             mock_notion_client.search.assert_called_once_with(
                 query="Daily Notes 2025-01-15", filter={"value": "page", "property": "object"}
             )
+            # Verify it was cached
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Daily Notes 2025-01-15")
+            assert notion_wrapper._page_cache[cache_key] == "found_page_id"
+
+        @pytest.mark.asyncio
+        async def test_find_page_by_title_found_via_child_listing(self, notion_wrapper, mock_notion_client):
+            """Test successful page finding via child listing when search fails."""
+            # Arrange - search returns no results, child listing succeeds
+            mock_notion_client.search = AsyncMock(return_value={"results": []})
+            mock_children_response = {
+                "results": [
+                    {"type": "child_page", "id": "found_page_id", "child_page": {"title": "Daily Notes 2025-01-15"}}
+                ]
+            }
+            mock_notion_client.blocks.children.list = AsyncMock(return_value=mock_children_response)
+
+            # Act
+            result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Daily Notes 2025-01-15")
+
+            # Assert
+            assert result == "found_page_id"
+            mock_notion_client.search.assert_called_once()
+            mock_notion_client.blocks.children.list.assert_called_once_with(block_id="parent_123")
+            # Verify it was cached
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Daily Notes 2025-01-15")
+            assert notion_wrapper._page_cache[cache_key] == "found_page_id"
 
         @pytest.mark.asyncio
         async def test_find_page_by_title_not_found(self, notion_wrapper, mock_notion_client):
             """Test page not found scenario."""
-            # Arrange
-            mock_response = {"results": []}
-            mock_notion_client.search = AsyncMock(return_value=mock_response)
+            # Arrange - all methods return no results
+            mock_notion_client.search = AsyncMock(return_value={"results": []})
+            mock_notion_client.blocks.children.list = AsyncMock(return_value={"results": []})
 
             # Act
             result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Non-existent Page")
 
             # Assert
             assert result is None
+            mock_notion_client.search.assert_called_once_with(
+                query="Non-existent Page", filter={"value": "page", "property": "object"}
+            )
+            mock_notion_client.blocks.children.list.assert_called_once_with(block_id="parent_123")
 
         @pytest.mark.asyncio
         async def test_find_page_by_title_wrong_parent(self, notion_wrapper, mock_notion_client):
             """Test page found but with wrong parent."""
-            # Arrange
-            mock_response = {
+            # Arrange - search finds page with different parent
+            mock_search_response = {
                 "results": [
                     {
                         "object": "page",
@@ -156,7 +211,8 @@ class TestNotionClientWrapper:
                     }
                 ]
             }
-            mock_notion_client.search = AsyncMock(return_value=mock_response)
+            mock_notion_client.search = AsyncMock(return_value=mock_search_response)
+            mock_notion_client.blocks.children.list = AsyncMock(return_value={"results": []})
 
             # Act
             result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Daily Notes 2025-01-15")
@@ -168,7 +224,7 @@ class TestNotionClientWrapper:
         async def test_find_page_by_title_database_parent(self, notion_wrapper, mock_notion_client):
             """Test finding page with database as parent."""
             # Arrange
-            mock_response = {
+            mock_search_response = {
                 "results": [
                     {
                         "object": "page",
@@ -178,13 +234,67 @@ class TestNotionClientWrapper:
                     }
                 ]
             }
-            mock_notion_client.search = AsyncMock(return_value=mock_response)
+            mock_notion_client.search = AsyncMock(return_value=mock_search_response)
 
             # Act
             result = await notion_wrapper.find_page_by_title(parent_id="database_123", title="Database Page")
 
             # Assert
             assert result == "database_page_id"
+
+        @pytest.mark.asyncio
+        async def test_find_page_by_title_cached_page_no_longer_exists(self, notion_wrapper, mock_notion_client):
+            """Test handling when cached page no longer exists."""
+            # Arrange - populate cache with non-existent page
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Daily Notes 2025-01-15")
+            notion_wrapper._page_cache[cache_key] = "deleted_page_id"
+
+            # Mock page verification to return 404
+            mock_notion_client.pages.retrieve = AsyncMock(
+                side_effect=APIResponseError(
+                    response=MagicMock(status_code=404), message="Page not found", code="object_not_found"
+                )
+            )
+
+            # Mock search to find the page
+            mock_search_response = {
+                "results": [
+                    {
+                        "object": "page",
+                        "id": "new_page_id",
+                        "parent": {"page_id": "parent_123"},
+                        "properties": {"title": {"title": [{"text": {"content": "Daily Notes 2025-01-15"}}]}},
+                    }
+                ]
+            }
+            mock_notion_client.search = AsyncMock(return_value=mock_search_response)
+
+            # Act
+            result = await notion_wrapper.find_page_by_title(parent_id="parent_123", title="Daily Notes 2025-01-15")
+
+            # Assert
+            assert result == "new_page_id"
+            # Verify old cache entry was removed and new one added
+            assert notion_wrapper._page_cache[cache_key] == "new_page_id"
+
+        @pytest.mark.asyncio
+        async def test_find_page_by_title_child_listing_not_supported(self, notion_wrapper, mock_notion_client):
+            """Test handling when child listing is not supported (e.g., database parent)."""
+            # Arrange - search returns no results, child listing fails with 400
+            mock_notion_client.search = AsyncMock(return_value={"results": []})
+            mock_notion_client.blocks.children.list = AsyncMock(
+                side_effect=APIResponseError(
+                    response=MagicMock(status_code=400), message="Invalid block", code="invalid_block"
+                )
+            )
+
+            # Act
+            result = await notion_wrapper.find_page_by_title(parent_id="database_123", title="Database Page")
+
+            # Assert
+            assert result is None
+            mock_notion_client.search.assert_called_once()
+            mock_notion_client.blocks.children.list.assert_called_once()
 
         @pytest.mark.asyncio
         async def test_find_page_by_title_api_error(self, notion_wrapper, mock_notion_client):
