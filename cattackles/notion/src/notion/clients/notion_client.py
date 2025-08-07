@@ -69,7 +69,15 @@ class NotionClientWrapper:
             cache_key = self._get_cache_key(parent_id, title)
             self._page_cache[cache_key] = page_id
 
-            self.logger.info("Successfully created page", page_id=page_id, title=title)
+            self.logger.info(
+                "✅ SUCCESSFULLY CREATED PAGE AND CACHED",
+                page_id=page_id,
+                title=title,
+                cache_key=cache_key,
+                cache_size=len(self._page_cache),
+                parent_id=parent_id,
+                all_cache_keys=list(self._page_cache.keys()),
+            )
 
             return page_id
 
@@ -87,7 +95,18 @@ class NotionClientWrapper:
 
     def _get_cache_key(self, parent_id: str, title: str) -> str:
         """Generate a cache key for the page lookup."""
-        return f"{parent_id}:{title}"
+        cache_key = f"{parent_id}:{title}"
+        self.logger.info(
+            "🔑 GENERATED CACHE KEY",
+            parent_id=parent_id,
+            title=title,
+            cache_key=cache_key,
+            parent_id_type=type(parent_id).__name__,
+            title_type=type(title).__name__,
+            parent_id_len=len(parent_id),
+            title_len=len(title),
+        )
+        return cache_key
 
     async def _find_page_in_cache(self, parent_id: str, title: str) -> Optional[str]:
         """
@@ -103,34 +122,57 @@ class NotionClientWrapper:
         cache_key = self._get_cache_key(parent_id, title)
         cached_page_id = self._page_cache.get(cache_key)
 
+        self.logger.info(
+            "🔍 CACHE LOOKUP ATTEMPT",
+            parent_id=parent_id,
+            title=title,
+            cache_key=cache_key,
+            cache_size=len(self._page_cache),
+            cache_keys=list(self._page_cache.keys()),
+            found_in_cache=cached_page_id is not None,
+            cached_page_id=cached_page_id,
+        )
+
         if not cached_page_id:
-            self.logger.info("Page not found in cache", parent_id=parent_id, title=title)
+            self.logger.info("❌ PAGE NOT IN CACHE", parent_id=parent_id, title=title, cache_key=cache_key)
             return None
 
-        self.logger.info("Found page in cache, verifying existence", page_id=cached_page_id, title=title)
+        self.logger.info("🔍 FOUND IN CACHE - VERIFYING EXISTENCE", page_id=cached_page_id, title=title)
 
         # Verify the cached page still exists
         try:
             await self.client.pages.retrieve(page_id=cached_page_id)
-            self.logger.info("Cache hit: page verified to exist", page_id=cached_page_id, title=title)
+            self.logger.info("✅ CACHE HIT - PAGE VERIFIED TO EXIST", page_id=cached_page_id, title=title)
             return cached_page_id
         except APIResponseError as e:
             if e.status == 404:
                 # Page no longer exists, remove from cache
                 self.logger.info(
-                    "Cached page no longer exists, removing from cache", page_id=cached_page_id, title=title
+                    "🗑️ CACHED PAGE NO LONGER EXISTS - REMOVING FROM CACHE",
+                    page_id=cached_page_id,
+                    title=title,
+                    cache_key=cache_key,
+                    cache_size_before=len(self._page_cache),
                 )
                 del self._page_cache[cache_key]
+                self.logger.info("🗑️ REMOVED FROM CACHE", cache_size_after=len(self._page_cache))
                 return None
             else:
                 # Other API error, log but don't remove from cache
                 self.logger.info(
-                    "Error verifying cached page existence", error=str(e), page_id=cached_page_id, title=title
+                    "⚠️ ERROR VERIFYING CACHED PAGE - KEEPING IN CACHE",
+                    error=str(e),
+                    status_code=e.status,
+                    page_id=cached_page_id,
+                    title=title,
                 )
                 return None
         except Exception as e:
             self.logger.info(
-                "Unexpected error verifying cached page", error=str(e), page_id=cached_page_id, title=title
+                "💥 UNEXPECTED ERROR VERIFYING CACHED PAGE - KEEPING IN CACHE",
+                error=str(e),
+                page_id=cached_page_id,
+                title=title,
             )
             return None
 
@@ -151,14 +193,32 @@ class NotionClientWrapper:
             response = await self.client.search(query=title, filter={"value": "page", "property": "object"})
             results = response.get("results", [])
 
-            self.logger.info("Search API returned results", parent_id=parent_id, title=title, result_count=len(results))
+            self.logger.info(
+                "🔍 SEARCH API RETURNED RESULTS", parent_id=parent_id, title=title, result_count=len(results)
+            )
 
             # Look for exact title match in the results
-            for result in results:
+            for i, result in enumerate(results):
+                self.logger.info(
+                    "🔍 EXAMINING SEARCH RESULT",
+                    result_index=i,
+                    result_object_type=result.get("object"),
+                    result_id=result.get("id"),
+                    full_result_keys=list(result.keys()),
+                )
+
                 if result.get("object") == "page":
                     # Check if this page has the parent we're looking for
                     parent = result.get("parent", {})
                     result_parent_id = parent.get("page_id") or parent.get("database_id")
+
+                    self.logger.info(
+                        "🔍 CHECKING PARENT MATCH",
+                        result_parent_id=result_parent_id,
+                        expected_parent_id=parent_id,
+                        parent_matches=result_parent_id == parent_id,
+                        parent_structure=parent,
+                    )
 
                     if result_parent_id == parent_id:
                         # Check if the title matches exactly
@@ -166,17 +226,55 @@ class NotionClientWrapper:
                         title_prop = properties.get("title", {})
                         title_content = title_prop.get("title", [])
 
+                        actual_title = None
+                        if title_content and len(title_content) > 0:
+                            actual_title = title_content[0].get("text", {}).get("content")
+
+                        self.logger.info(
+                            "🔍 CHECKING TITLE MATCH",
+                            actual_title=actual_title,
+                            expected_title=title,
+                            title_matches=actual_title == title,
+                            title_content_structure=title_content,
+                            properties_structure=properties,
+                        )
+
                         if title_content and title_content[0].get("text", {}).get("content") == title:
                             page_id = result["id"]
-                            self.logger.info("Found page via search API", page_id=page_id, title=title)
+                            self.logger.info("✅ FOUND EXACT MATCH VIA SEARCH API", page_id=page_id, title=title)
 
                             # Cache the result
                             cache_key = self._get_cache_key(parent_id, title)
                             self._page_cache[cache_key] = page_id
 
-                            return page_id
+                            self.logger.info(
+                                "💾 CACHED PAGE FROM SEARCH API",
+                                page_id=page_id,
+                                cache_key=cache_key,
+                                cache_size=len(self._page_cache),
+                            )
 
-            self.logger.info("Page not found via search API", parent_id=parent_id, title=title)
+                            return page_id
+                        else:
+                            self.logger.info(
+                                "❌ TITLE MISMATCH - SKIPPING RESULT",
+                                actual_title=actual_title,
+                                expected_title=title,
+                                result_id=result.get("id"),
+                            )
+                    else:
+                        self.logger.info(
+                            "❌ PARENT MISMATCH - SKIPPING RESULT",
+                            result_parent_id=result_parent_id,
+                            expected_parent_id=parent_id,
+                            result_id=result.get("id"),
+                        )
+                else:
+                    self.logger.info(
+                        "❌ NON-PAGE RESULT - SKIPPING", object_type=result.get("object"), result_id=result.get("id")
+                    )
+
+            self.logger.info("❌ PAGE NOT FOUND VIA SEARCH API", parent_id=parent_id, title=title)
             return None
 
         except APIResponseError as e:
@@ -221,6 +319,13 @@ class NotionClientWrapper:
                         cache_key = self._get_cache_key(parent_id, title)
                         self._page_cache[cache_key] = page_id
 
+                        self.logger.info(
+                            "Cached page from child listing",
+                            page_id=page_id,
+                            cache_key=cache_key,
+                            cache_size=len(self._page_cache),
+                        )
+
                         return page_id
 
             self.logger.info("Page not found via child listing", parent_id=parent_id, title=title)
@@ -263,43 +368,54 @@ class NotionClientWrapper:
             RequestTimeoutError: If the request times out
         """
         try:
-            self.logger.info("Starting page search", parent_id=parent_id, title=title)
+            self.logger.info(
+                "🔍 STARTING PAGE SEARCH",
+                parent_id=parent_id,
+                title=title,
+                cache_size_before=len(self._page_cache),
+                all_cache_keys=list(self._page_cache.keys()),
+            )
 
             # Stage 1: Check cache
             page_id = await self._find_page_in_cache(parent_id, title)
             if page_id:
-                self.logger.info("Found page via cache", page_id=page_id, title=title)
+                self.logger.info("✅ FOUND VIA CACHE", page_id=page_id, title=title)
                 return page_id
 
             # Stage 2: Search API
             page_id = await self._find_page_via_search(parent_id, title)
             if page_id:
-                self.logger.info("Found page via search API", page_id=page_id, title=title)
+                self.logger.info(
+                    "✅ FOUND VIA SEARCH API", page_id=page_id, title=title, cache_size_after=len(self._page_cache)
+                )
                 return page_id
 
             # Stage 3: List all child pages
             page_id = await self._find_page_via_listing(parent_id, title)
             if page_id:
-                self.logger.info("Found page via child listing", page_id=page_id, title=title)
+                self.logger.info(
+                    "✅ FOUND VIA CHILD LISTING", page_id=page_id, title=title, cache_size_after=len(self._page_cache)
+                )
                 return page_id
 
-            self.logger.info("Page not found via any method", parent_id=parent_id, title=title)
+            self.logger.info(
+                "❌ PAGE NOT FOUND VIA ANY METHOD",
+                parent_id=parent_id,
+                title=title,
+                final_cache_size=len(self._page_cache),
+            )
             return None
 
         except APIResponseError as e:
             self.logger.error(
-                "Failed to search for page", error=str(e), status_code=e.status, parent_id=parent_id, title=title
+                "🚨 API ERROR during page search", error=str(e), status_code=e.status, parent_id=parent_id, title=title
             )
             raise
         except RequestTimeoutError as e:
-            self.logger.error(
-                "Request timeout while searching for page", error=str(e), parent_id=parent_id, title=title
-            )
+            self.logger.error("⏰ TIMEOUT ERROR during page search", error=str(e), parent_id=parent_id, title=title)
             raise
         except Exception as e:
-            self.logger.error(
-                "Unexpected error while searching for page", error=str(e), parent_id=parent_id, title=title
-            )
+            self.logger.error("💥 UNEXPECTED ERROR during page search", error=str(e), parent_id=parent_id, title=title)
             raise
 
     async def append_content_to_page(self, page_id: str, content: str) -> None:
