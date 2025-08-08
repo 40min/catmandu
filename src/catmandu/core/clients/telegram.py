@@ -82,7 +82,7 @@ class TelegramClient:
             return None
 
         except httpx.HTTPError as e:
-            self.log.error("Failed to send message to Telegram", error=e, chat_id=chat_id)
+            self.log.error("Failed to send message to Telegram", error=e, chat_id=chat_id, message=text)
             return None
 
     async def get_file(self, file_id: str) -> Optional[Dict[str, Any]]:
