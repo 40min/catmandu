@@ -27,6 +27,8 @@ class NotionCattackle:
     def __init__(self):
         """Initialize the NotionCattackle."""
         self.logger = logger.bind(component="notion_cattackle")
+        # Will be populated by the server during lifespan initialization
+        self._client_instances = {}
 
     async def save_to_notion(
         self, username: str, message_content: str, accumulated_params: Optional[List[str]] = None
@@ -70,8 +72,8 @@ class NotionCattackle:
         token = user_config["token"]
         parent_page_id = user_config["parent_page_id"]
 
-        # Initialize Notion client for this user
-        notion_client = NotionClientWrapper(token)
+        # Get persistent Notion client for this user (with cache preservation)
+        notion_client = self._get_notion_client(username, token)
 
         # Get today's date for page title (without timestamp so all messages for the day go to same page)
         today_date = format_date_for_page_title()
@@ -116,6 +118,31 @@ class NotionCattackle:
             ):
                 return e.args[0]
             return "❌ An unexpected error occurred. Please try again later."
+
+    def _get_notion_client(self, username: str, token: str) -> NotionClientWrapper:
+        """
+        Get or create a persistent NotionClientWrapper for the user.
+
+        This method ensures that each user gets a persistent client instance
+        that maintains its own cache across requests, improving performance.
+
+        Args:
+            username: The username to get the client for
+            token: The Notion API token for the user
+
+        Returns:
+            NotionClientWrapper: Persistent client instance for the user
+        """
+        # Try to get existing client instance first
+        if username in self._client_instances:
+            self.logger.debug("Using existing persistent client", username=username)
+            return self._client_instances[username]
+
+        # Create new client instance if not found (fallback for edge cases)
+        self.logger.info("Creating new client instance", username=username)
+        client = NotionClientWrapper(token)
+        self._client_instances[username] = client
+        return client
 
     async def _get_or_create_daily_page(
         self, notion_client: NotionClientWrapper, parent_page_id: str, date_str: str

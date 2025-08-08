@@ -138,6 +138,15 @@ def is_user_authorized(username: str) -> bool:
     return is_valid
 
 
+def get_all_user_configs() -> Dict[str, Dict[str, str]]:
+    """Get all user configurations.
+
+    Returns:
+        Dictionary mapping usernames to their configuration dictionaries
+    """
+    return _get_user_configs()
+
+
 def reload_user_configs() -> None:
     """Force reload of user configurations from environment variables.
 

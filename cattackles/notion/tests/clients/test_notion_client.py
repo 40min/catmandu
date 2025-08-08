@@ -275,6 +275,7 @@ class TestNotionClientWrapper:
             # Assert
             assert result == "new_page_id"
             # Verify old cache entry was removed and new one added
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Daily Notes 2025-01-15")
             assert notion_wrapper._page_cache[cache_key] == "new_page_id"
 
         @pytest.mark.asyncio
@@ -447,6 +448,7 @@ class TestNotionClientWrapper:
             # Assert
             assert result is None
             # Verify page was removed from cache
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Deleted Page")
             assert cache_key not in notion_wrapper._page_cache
 
         @pytest.mark.asyncio
@@ -467,6 +469,7 @@ class TestNotionClientWrapper:
             # Assert
             assert result is None
             # Verify page was NOT removed from cache (might be temporary error)
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Unauthorized Page")
             assert cache_key in notion_wrapper._page_cache
 
         @pytest.mark.asyncio
@@ -483,6 +486,7 @@ class TestNotionClientWrapper:
             # Assert
             assert result is None
             # Verify page was NOT removed from cache
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Error Page")
             assert cache_key in notion_wrapper._page_cache
 
     class TestFindPageViaSearch:
@@ -847,7 +851,6 @@ class TestNotionClientWrapper:
             """Test that cache is populated regardless of which stage finds the page."""
             parent_id = "parent_123"
             title = "Test Page"
-            cache_key = notion_wrapper._get_cache_key(parent_id, title)
 
             # Test 1: Cache populated from search
             mock_search_response = {
@@ -864,6 +867,7 @@ class TestNotionClientWrapper:
 
             result1 = await notion_wrapper.find_page_by_title(parent_id, title)
             assert result1 == "search_page_id"
+            cache_key = notion_wrapper._get_cache_key(parent_id, title)
             assert notion_wrapper._page_cache[cache_key] == "search_page_id"
 
             # Clear cache for next test

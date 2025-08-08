@@ -9,7 +9,9 @@ import uvicorn
 from dotenv import load_dotenv
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+from notion.clients.notion_client import NotionClientWrapper
 from notion.config.settings import NotionCattackleSettings, configure_logging, validate_environment
+from notion.config.user_config import get_all_user_configs
 from notion.core.cattackle import NotionCattackle
 from notion.handlers.health import handle_health_check
 from notion.handlers.mcp_handlers import handle_tool_call
@@ -48,7 +50,7 @@ def create_mcp_server(cattackle: NotionCattackle) -> Server:
     return app
 
 
-def create_starlette_app(mcp_server: Server, json_response: bool = False) -> Starlette:
+def create_starlette_app(mcp_server: Server, cattackle: NotionCattackle, json_response: bool = False) -> Starlette:
     """
     Create the Starlette ASGI application with MCP server integration.
 
@@ -72,13 +74,32 @@ def create_starlette_app(mcp_server: Server, json_response: bool = False) -> Sta
 
     @contextlib.asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
-        """Context manager for session manager."""
+        """Context manager for session manager and persistent client instances."""
         async with session_manager.run():
             logger.info("Notion cattackle MCP server started with StreamableHTTP!")
+
+            # Initialize persistent NotionClientWrapper instances for each user
+            # This ensures cache persistence across requests
+            user_configs = get_all_user_configs()
+            client_instances = {}
+
+            for username, config in user_configs.items():
+                token = config.get("token")
+                if token:
+                    client_instances[username] = NotionClientWrapper(token)
+                    logger.info("Initialized persistent Notion client", username=username)
+
+            # Store client instances in the cattackle for reuse
+            cattackle._client_instances = client_instances
+            logger.info("Initialized persistent Notion clients", client_count=len(client_instances))
+
             try:
                 yield
             finally:
                 logger.info("Notion cattackle MCP server shutting down...")
+                # Clean up client instances
+                if hasattr(cattackle, "_client_instances"):
+                    del cattackle._client_instances
 
     # Create an ASGI application using the transport
     return Starlette(
@@ -114,7 +135,7 @@ def run_server(settings: NotionCattackleSettings, json_response: bool = False) -
     mcp_server = create_mcp_server(cattackle)
 
     # Create Starlette app
-    starlette_app = create_starlette_app(mcp_server, json_response)
+    starlette_app = create_starlette_app(mcp_server, cattackle, json_response)
 
     # Run the server
     uvicorn.run(starlette_app, host=settings.host, port=settings.port)

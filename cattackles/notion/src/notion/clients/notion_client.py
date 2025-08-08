@@ -27,6 +27,21 @@ class NotionClientWrapper:
         # Cache for date -> page_id mapping to optimize repeated lookups
         self._page_cache: Dict[str, str] = {}
 
+    def _get_cache_key(self, parent_id: str, title: str) -> str:
+        """Generate a cache key for the page lookup."""
+        cache_key = f"{parent_id}:{title}"
+        self.logger.info(
+            "🔑 GENERATED CACHE KEY",
+            parent_id=parent_id,
+            title=title,
+            cache_key=cache_key,
+            parent_id_type=type(parent_id).__name__,
+            title_type=type(title).__name__,
+            parent_id_len=len(parent_id),
+            title_len=len(title),
+        )
+        return cache_key
+
     async def create_page(self, parent_id: str, title: str, content: Optional[str] = None) -> str:
         """
         Create a new page in Notion.
@@ -93,20 +108,25 @@ class NotionClientWrapper:
             self.logger.error("Unexpected error while creating page", error=str(e), parent_id=parent_id, title=title)
             raise
 
-    def _get_cache_key(self, parent_id: str, title: str) -> str:
-        """Generate a cache key for the page lookup."""
-        cache_key = f"{parent_id}:{title}"
-        self.logger.info(
-            "🔑 GENERATED CACHE KEY",
-            parent_id=parent_id,
-            title=title,
-            cache_key=cache_key,
-            parent_id_type=type(parent_id).__name__,
-            title_type=type(title).__name__,
-            parent_id_len=len(parent_id),
-            title_len=len(title),
-        )
-        return cache_key
+    def _normalize_notion_id(self, notion_id: str) -> str:
+        """
+        Normalize Notion IDs to handle format differences.
+
+        Notion IDs can be returned in different formats:
+        - With dashes: 24713202-e62c-8028-94aa-c2d396532b14
+        - Without dashes: 24713202e62c802894aac2d396532b14
+
+        This method normalizes them to the format without dashes for consistent comparison.
+
+        Args:
+            notion_id: The Notion ID to normalize
+
+        Returns:
+            str: Normalized ID without dashes
+        """
+        if not notion_id:
+            return notion_id
+        return notion_id.replace("-", "")
 
     async def _find_page_in_cache(self, parent_id: str, title: str) -> Optional[str]:
         """
@@ -212,15 +232,21 @@ class NotionClientWrapper:
                     parent = result.get("parent", {})
                     result_parent_id = parent.get("page_id") or parent.get("database_id")
 
+                    # Normalize both IDs to handle format differences (with/without dashes)
+                    normalized_result_parent = self._normalize_notion_id(result_parent_id) if result_parent_id else None
+                    normalized_expected_parent = self._normalize_notion_id(parent_id)
+
                     self.logger.info(
                         "🔍 CHECKING PARENT MATCH",
                         result_parent_id=result_parent_id,
                         expected_parent_id=parent_id,
-                        parent_matches=result_parent_id == parent_id,
+                        normalized_result_parent=normalized_result_parent,
+                        normalized_expected_parent=normalized_expected_parent,
+                        parent_matches=normalized_result_parent == normalized_expected_parent,
                         parent_structure=parent,
                     )
 
-                    if result_parent_id == parent_id:
+                    if normalized_result_parent == normalized_expected_parent:
                         # Check if the title matches exactly
                         properties = result.get("properties", {})
                         title_prop = properties.get("title", {})
