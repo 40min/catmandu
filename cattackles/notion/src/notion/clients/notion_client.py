@@ -159,11 +159,31 @@ class NotionClientWrapper:
 
         self.logger.info("🔍 FOUND IN CACHE - VERIFYING EXISTENCE", page_id=cached_page_id, title=title)
 
-        # Verify the cached page still exists
+        # Verify the cached page still exists and is not archived
         try:
-            await self.client.pages.retrieve(page_id=cached_page_id)
-            self.logger.info("✅ CACHE HIT - PAGE VERIFIED TO EXIST", page_id=cached_page_id, title=title)
+            page_response = await self.client.pages.retrieve(page_id=cached_page_id)
+
+            # Check if the page is archived (deleted in Notion UI)
+            is_archived = page_response.get("archived", False)
+
+            if is_archived:
+                # Page is archived, remove from cache
+                self.logger.info(
+                    "🗑️ CACHED PAGE IS ARCHIVED - REMOVING FROM CACHE",
+                    page_id=cached_page_id,
+                    title=title,
+                    cache_key=cache_key,
+                    cache_size_before=len(self._page_cache),
+                )
+                del self._page_cache[cache_key]
+                self.logger.info("🗑️ REMOVED ARCHIVED PAGE FROM CACHE", cache_size_after=len(self._page_cache))
+                return None
+
+            self.logger.info(
+                "✅ CACHE HIT - PAGE VERIFIED TO EXIST AND NOT ARCHIVED", page_id=cached_page_id, title=title
+            )
             return cached_page_id
+
         except APIResponseError as e:
             if e.status == 404:
                 # Page no longer exists, remove from cache

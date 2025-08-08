@@ -473,6 +473,24 @@ class TestNotionClientWrapper:
             assert cache_key in notion_wrapper._page_cache
 
         @pytest.mark.asyncio
+        async def test_find_page_in_cache_page_archived(self, notion_wrapper, mock_notion_client):
+            """Test when cached page is archived (deleted in Notion UI)."""
+            # Arrange
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Archived Page")
+            notion_wrapper._page_cache[cache_key] = "archived_page_id"
+            # Mock page response with archived=True
+            mock_notion_client.pages.retrieve = AsyncMock(return_value={"id": "archived_page_id", "archived": True})
+
+            # Act
+            result = await notion_wrapper._find_page_in_cache("parent_123", "Archived Page")
+
+            # Assert
+            assert result is None
+            # Verify page was removed from cache
+            cache_key = notion_wrapper._get_cache_key("parent_123", "Archived Page")
+            assert cache_key not in notion_wrapper._page_cache
+
+        @pytest.mark.asyncio
         async def test_find_page_in_cache_unexpected_error(self, notion_wrapper, mock_notion_client):
             """Test when page verification fails with unexpected error."""
             # Arrange
