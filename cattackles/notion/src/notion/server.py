@@ -1,10 +1,10 @@
 import contextlib
-import logging
 import sys
 from collections.abc import AsyncIterator
 
 import click
 import mcp.types as types
+import structlog
 import uvicorn
 from dotenv import load_dotenv
 from mcp.server.lowlevel import Server
@@ -23,7 +23,7 @@ from starlette.types import Receive, Scope, Send
 # Load environment variables from .env file
 load_dotenv()
 
-logger = logging.getLogger("notion-cattackle")
+logger = structlog.get_logger("notion-cattackle")
 
 
 def create_mcp_server(cattackle: NotionCattackle) -> Server:
