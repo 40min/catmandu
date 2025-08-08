@@ -52,7 +52,6 @@ class OpenAIClient:
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
                 max_completion_tokens=150,
-                temperature=0.8,
             )
 
             content = response.choices[0].message.content

@@ -198,7 +198,6 @@ class OpenAIClient:
             original_text_length=len(text),
             original_word_count=len(text.split()),
             system_prompt_length=len(prompt),
-            temperature=0.1,
             max_completion_tokens=2000,
             timeout_seconds=self.timeout,
             text_preview=text[:100] + "..." if len(text) > 100 else text,
