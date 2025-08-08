@@ -11,7 +11,7 @@ class EchoCattackleSettings(BaseModel):
 
     # OpenAI API configuration (primary for joke functionality)
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key for joke functionality")
-    openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model to use for joke generation")
+    openai_model: str = Field(default="gpt-5-nano", description="OpenAI model to use for joke generation")
 
     # Gemini API configuration (fallback for joke functionality)
     gemini_api_key: Optional[str] = Field(default=None, description="Gemini API key for joke functionality")
@@ -60,7 +60,7 @@ class EchoCattackleSettings(BaseModel):
 
         return cls(
             openai_api_key=openai_api_key,
-            openai_model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+            openai_model=os.environ.get("OPENAI_MODEL", "gpt-5-nano"),
             gemini_api_key=gemini_api_key,
             gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite-preview-06-17"),
             mcp_server_port=int(os.environ.get("MCP_SERVER_PORT", "8001")),
@@ -91,7 +91,7 @@ class EchoCattackleSettings(BaseModel):
 
         # Determine primary model
         if self.openai_api_key:
-            logger.info("OpenAI API configured as primary. Joke functionality enabled with GPT-4o-mini.")
+            logger.info("OpenAI API configured as primary. Joke functionality enabled with configured OpenAI model.")
         elif self.gemini_api_key:
             logger.info("Gemini API configured as fallback. Joke functionality enabled with Gemini.")
         else:

@@ -52,7 +52,7 @@ def print_daily_report(cost_tracker: CostTracker, date: str):
     print()
     print("💰 Cost Breakdown:")
     print(f"  Whisper API: {format_currency(costs['whisper_cost'])}")
-    print(f"  GPT-4o-mini: {format_currency(costs['gpt_cost'])}")
+    print(f"  OpenAI Model: {format_currency(costs['gpt_cost'])}")
     print(f"  Total Cost:  {format_currency(costs['total_cost'])}")
     print()
     print("🔢 Token Usage:")
@@ -88,7 +88,7 @@ def print_range_report(
     print()
     print("💰 Cost Breakdown:")
     print(f"  Whisper API: {format_currency(costs['whisper_cost'])}")
-    print(f"  GPT-4o-mini: {format_currency(costs['gpt_cost'])}")
+    print(f"  OpenAI Model: {format_currency(costs['gpt_cost'])}")
     print(f"  Total Cost:  {format_currency(costs['total_cost'])}")
     print()
     print("🔢 Token Usage:")
@@ -170,7 +170,7 @@ def print_user_breakdown(cost_tracker: CostTracker, start_date: str, end_date: s
         print("   💰 Cost Breakdown:")
         print(f"      Total Cost: {format_currency(user['total_cost'])}")
         print(f"      Whisper API: {format_currency(user['whisper_cost'])}")
-        print(f"      GPT-4o-mini: {format_currency(user['gpt_cost'])}")
+        print(f"      OpenAI Model: {format_currency(user['gpt_cost'])}")
         print(f"      Cost per Minute: {format_currency(user['cost_per_minute'])}")
 
         print("   🔢 Token Usage:")
@@ -210,7 +210,7 @@ def print_api_usage_breakdown(cost_tracker: CostTracker, start_date: str, end_da
 
     print("🎯 Cost Distribution:")
     print(f"  Whisper API: {format_currency(costs['whisper_cost'])} ({whisper_percentage:.1f}%)")
-    print(f"  GPT-4o-mini: {format_currency(costs['gpt_cost'])} ({gpt_percentage:.1f}%)")
+    print(f"  OpenAI Model: {format_currency(costs['gpt_cost'])} ({gpt_percentage:.1f}%)")
 
     print("\n📊 Average per Request:")
     print(f"  Audio Duration: {format_duration(avg_audio_per_request)}")

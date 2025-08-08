@@ -42,7 +42,7 @@ class CostTracker:
         return duration_minutes * self.settings.whisper_cost_per_minute
 
     def calculate_gpt_cost(self, input_tokens: int, output_tokens: int) -> float:
-        """Calculate GPT-4o-mini cost based on token usage.
+        """Calculate OpenAI model cost based on token usage.
 
         Args:
             input_tokens: Number of input tokens
@@ -51,8 +51,8 @@ class CostTracker:
         Returns:
             Estimated cost in USD
         """
-        input_cost = (input_tokens / 1_000_000) * self.settings.gpt4o_mini_input_cost_per_1m_tokens
-        output_cost = (output_tokens / 1_000_000) * self.settings.gpt4o_mini_output_cost_per_1m_tokens
+        input_cost = (input_tokens / 1_000_000) * self.settings.openai_gpt_nano_input_cost_per_1m_tokens
+        output_cost = (output_tokens / 1_000_000) * self.settings.openai_gpt_nano_output_cost_per_1m_tokens
         return input_cost + output_cost
 
     def get_daily_costs(self, target_date: str) -> Dict:

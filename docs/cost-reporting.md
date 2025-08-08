@@ -4,7 +4,7 @@ This document provides comprehensive guidance on using Catmandu's cost reporting
 
 ## Overview
 
-Catmandu includes a robust cost tracking and reporting system that logs all audio processing operations and provides detailed analysis tools. The system tracks costs for both Whisper API (transcription) and GPT-4o-mini (text improvement) usage.
+Catmandu includes a robust cost tracking and reporting system that logs all audio processing operations and provides detailed analysis tools. The system tracks costs for both Whisper API (transcription) and OpenAI model (text improvement) usage.
 
 ## Cost Tracking
 
@@ -90,7 +90,7 @@ python scripts/cost_report.py --weekly --api-breakdown
 
 **API breakdown includes:**
 
-- Cost distribution between Whisper API and GPT-4o-mini
+- Cost distribution between Whisper API and OpenAI model
 - Average metrics per request (duration, tokens, processing cost)
 - Efficiency metrics (cost per minute, cost per MB)
 - Processing performance statistics
@@ -120,7 +120,7 @@ Average Processing Time: 7.2 seconds
 
 💰 Cost Breakdown:
   Whisper API: $0.2715
-  GPT-4o-mini: $0.0023
+  OpenAI Model: $0.05
   Total Cost:  $0.2738
 
 🔢 Token Usage:
@@ -154,7 +154,7 @@ User                      Requests   Duration     Cost       Avg/Min
    💰 Cost Breakdown:
       Total Cost: $0.1512
       Whisper API: $0.1512
-      GPT-4o-mini: $0.0012
+      OpenAI Model: $0.05
       Cost per Minute: $0.0060
    🔢 Token Usage:
       Input Tokens: 1,850
@@ -169,7 +169,7 @@ User                      Requests   Duration     Cost       Avg/Min
 ==================================================
 🎯 Cost Distribution:
   Whisper API: $0.2715 (99.2%)
-  GPT-4o-mini: $0.0023 (0.8%)
+  OpenAI Model: $0.0023 (0.8%)
 
 📊 Average per Request:
   Audio Duration: 1.8 minutes
@@ -239,7 +239,7 @@ python scripts/cost_report.py --range --start-date 2024-02-15 --end-date 2024-02
 
 ### Key Metrics Explained
 
-- **Total Cost**: Combined Whisper API and GPT-4o-mini costs
+- **Total Cost**: Combined Whisper API and OpenAI model costs
 - **Cost per Minute**: Total cost divided by audio duration (efficiency metric)
 - **Cost per MB**: Total cost divided by file size (storage efficiency)
 - **Processing Speed Ratio**: Audio duration vs. processing time (performance metric)
@@ -248,7 +248,7 @@ python scripts/cost_report.py --range --start-date 2024-02-15 --end-date 2024-02
 ### Cost Components
 
 1. **Whisper API Costs**: Based on audio duration (typically 99%+ of total cost)
-2. **GPT-4o-mini Costs**: Based on token usage for text improvement (small percentage)
+2. **OpenAI Model Costs**: Based on token usage for text improvement (small percentage)
 
 ### Efficiency Indicators
 
@@ -296,7 +296,7 @@ Cost tracking behavior is configured through the application settings:
 
 - `cost_logs_dir`: Directory for storing cost logs (default: `logs/costs`)
 - `whisper_cost_per_minute`: Whisper API pricing
-- `gpt4o_mini_input_cost_per_1m_tokens`: GPT-4o-mini input token pricing
-- `gpt4o_mini_output_cost_per_1m_tokens`: GPT-4o-mini output token pricing
+- `openai_gpt_nano_input_cost_per_1m_tokens`: OpenAI model input token pricing
+- `openai_gpt_nano_output_cost_per_1m_tokens`: OpenAI model output token pricing
 
 These settings ensure accurate cost calculations based on current API pricing.

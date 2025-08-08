@@ -32,8 +32,8 @@ class TestLoggingSafety:
         settings.cost_logs_dir = "test_logs/costs"
         settings.chat_logs_dir = "test_logs/chats"
         settings.whisper_cost_per_minute = 0.006
-        settings.gpt4o_mini_input_cost_per_1m_tokens = 0.15
-        settings.gpt4o_mini_output_cost_per_1m_tokens = 0.60
+        settings.openai_gpt_nano_input_cost_per_1m_tokens = 0.15
+        settings.openai_gpt_nano_output_cost_per_1m_tokens = 0.60
         return settings
 
     @pytest.fixture
@@ -181,8 +181,8 @@ class TestBusinessLogicContinuity:
         settings.cost_logs_dir = "test_logs/costs"
         settings.chat_logs_dir = "test_logs/chats"
         settings.whisper_cost_per_minute = 0.006
-        settings.gpt4o_mini_input_cost_per_1m_tokens = 0.15
-        settings.gpt4o_mini_output_cost_per_1m_tokens = 0.60
+        settings.openai_gpt_nano_input_cost_per_1m_tokens = 0.15
+        settings.openai_gpt_nano_output_cost_per_1m_tokens = 0.60
         settings.audio_processing_enabled = True
         settings.max_audio_file_size_mb = 25
         settings.max_audio_duration_minutes = 10
@@ -253,8 +253,8 @@ class TestBusinessLogicContinuity:
         settings = Mock()
         settings.cost_logs_dir = "/invalid/path/costs"
         settings.whisper_cost_per_minute = 0.006
-        settings.gpt4o_mini_input_cost_per_1m_tokens = 0.15
-        settings.gpt4o_mini_output_cost_per_1m_tokens = 0.60
+        settings.openai_gpt_nano_input_cost_per_1m_tokens = 0.15
+        settings.openai_gpt_nano_output_cost_per_1m_tokens = 0.60
 
         # This should not raise an exception even if directory creation fails
         try:
@@ -274,8 +274,8 @@ class TestDeprecatedMethodsRemoval:
         settings = Mock()
         settings.cost_logs_dir = "test_logs/costs"
         settings.whisper_cost_per_minute = 0.006
-        settings.gpt4o_mini_input_cost_per_1m_tokens = 0.15
-        settings.gpt4o_mini_output_cost_per_1m_tokens = 0.60
+        settings.openai_gpt_nano_input_cost_per_1m_tokens = 0.15
+        settings.openai_gpt_nano_output_cost_per_1m_tokens = 0.60
 
         with patch("pathlib.Path.mkdir"):
             return CostTracker(settings)

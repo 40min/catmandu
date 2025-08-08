@@ -28,7 +28,7 @@ def test_gemini_api_key():
 @pytest.fixture
 def test_openai_model():
     """Standard test OpenAI model name."""
-    return "gpt-4o-mini"
+    return "gpt-5-nano"
 
 
 @pytest.fixture

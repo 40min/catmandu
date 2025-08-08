@@ -22,8 +22,8 @@ def settings(temp_cost_logs_dir):
         telegram_bot_token="test_token",
         cost_logs_dir=temp_cost_logs_dir,
         whisper_cost_per_minute=0.006,
-        gpt4o_mini_input_cost_per_1m_tokens=0.15,
-        gpt4o_mini_output_cost_per_1m_tokens=0.60,
+        openai_gpt_nano_input_cost_per_1m_tokens=0.15,
+        openai_gpt_nano_output_cost_per_1m_tokens=0.60,
     )
 
 
@@ -59,7 +59,7 @@ class TestCostTracker:
         assert cost_tracker.calculate_whisper_cost(0.5) == 0.003
 
     def test_calculate_gpt_cost(self, cost_tracker):
-        """Test GPT-4o-mini cost calculation."""
+        """Test OpenAI model cost calculation."""
         # Test with 1M input tokens and 1M output tokens
         cost = cost_tracker.calculate_gpt_cost(1_000_000, 1_000_000)
         expected = 0.15 + 0.60  # input + output cost

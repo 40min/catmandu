@@ -100,7 +100,7 @@ python scripts/cost_report.py --range --start-date 2024-02-01 --end-date 2024-02
 ### Cost Efficiency
 
 - **Cost per minute**: Should remain consistent (~$0.006/minute for Whisper)
-- **API cost distribution**: Whisper typically 99%+, GPT-4o-mini <1%
+- **API cost distribution**: Whisper typically 99%+, OpenAI model <1%
 - **Processing speed**: Higher ratios indicate better performance
 
 ### Usage Patterns
@@ -113,7 +113,7 @@ python scripts/cost_report.py --range --start-date 2024-02-01 --end-date 2024-02
 
 - **Processing time**: Should be consistently fast
 - **File size efficiency**: Cost per MB should be stable
-- **Token usage**: Monitor GPT-4o-mini efficiency
+- **Token usage**: Monitor OpenAI model efficiency
 
 ## Automation Examples
 

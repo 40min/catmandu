@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # OpenAI configuration
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key for audio processing")
+    openai_model: str = Field(default="gpt-5-nano", description="OpenAI model for text improvement")
     audio_processing_enabled: bool = Field(default=False, description="Enable audio processing features")
 
     # Audio processing limits
@@ -33,9 +34,11 @@ class Settings(BaseSettings):
 
     # Cost tracking configuration
     whisper_cost_per_minute: float = Field(default=0.006, description="Whisper API cost per minute")
-    gpt4o_mini_input_cost_per_1m_tokens: float = Field(default=0.15, description="GPT-4o-mini input cost per 1M tokens")
-    gpt4o_mini_output_cost_per_1m_tokens: float = Field(
-        default=0.60, description="GPT-4o-mini output cost per 1M tokens"
+    openai_gpt_nano_input_cost_per_1m_tokens: float = Field(
+        default=0.15, description="OpenAI model input cost per 1M tokens"
+    )
+    openai_gpt_nano_output_cost_per_1m_tokens: float = Field(
+        default=0.60, description="OpenAI model output cost per 1M tokens"
     )
 
     # Cost logging
@@ -109,20 +112,20 @@ class Settings(BaseSettings):
             raise ValueError("WHISPER_COST_PER_MINUTE must be non-negative")
         return v
 
-    @field_validator("gpt4o_mini_input_cost_per_1m_tokens")
+    @field_validator("openai_gpt_nano_input_cost_per_1m_tokens")
     @classmethod
-    def validate_gpt4o_mini_input_cost_per_1m_tokens(cls, v: float) -> float:
-        """Validate GPT-4o-mini input cost per 1M tokens."""
+    def validate_openai_gpt_nano_input_cost_per_1m_tokens(cls, v: float) -> float:
+        """Validate OpenAI model input cost per 1M tokens."""
         if v < 0:
-            raise ValueError("GPT4O_MINI_INPUT_COST_PER_1M_TOKENS must be non-negative")
+            raise ValueError("OPENAI_GPT_NANO_INPUT_COST_PER_1M_TOKENS must be non-negative")
         return v
 
-    @field_validator("gpt4o_mini_output_cost_per_1m_tokens")
+    @field_validator("openai_gpt_nano_output_cost_per_1m_tokens")
     @classmethod
-    def validate_gpt4o_mini_output_cost_per_1m_tokens(cls, v: float) -> float:
-        """Validate GPT-4o-mini output cost per 1M tokens."""
+    def validate_openai_gpt_nano_output_cost_per_1m_tokens(cls, v: float) -> float:
+        """Validate OpenAI model output cost per 1M tokens."""
         if v < 0:
-            raise ValueError("GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS must be non-negative")
+            raise ValueError("OPENAI_GPT_NANO_OUTPUT_COST_PER_1M_TOKENS must be non-negative")
         return v
 
     def validate_environment(self) -> None:
@@ -148,8 +151,12 @@ class Settings(BaseSettings):
             logger.info(f"  - Max audio duration: {self.max_audio_duration_minutes} minutes")
             logger.info(f"  - Cost logs directory: {self.cost_logs_dir}")
             logger.info(f"  - Whisper cost per minute: ${self.whisper_cost_per_minute:.4f}")
-            logger.info(f"  - GPT-4o-mini input cost per 1M tokens: ${self.gpt4o_mini_input_cost_per_1m_tokens:.2f}")
-            logger.info(f"  - GPT-4o-mini output cost per 1M tokens: ${self.gpt4o_mini_output_cost_per_1m_tokens:.2f}")
+            logger.info(
+                f"  - OpenAI model input cost per 1M tokens: ${self.openai_gpt_nano_input_cost_per_1m_tokens:.2f}"
+            )
+            logger.info(
+                f"  - OpenAI model output cost per 1M tokens: ${self.openai_gpt_nano_output_cost_per_1m_tokens:.2f}"
+            )
         else:
             logger.info("  - Audio processing is disabled. Voice messages will not be processed.")
             logger.info("  - To enable audio processing, set AUDIO_PROCESSING_ENABLED=true and provide OPENAI_API_KEY")

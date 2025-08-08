@@ -8,16 +8,18 @@ logger = structlog.get_logger(__name__)
 
 
 class OpenAIClient:
-    """Client for OpenAI API interactions, specifically Whisper and GPT-4o-mini."""
+    """Client for OpenAI API interactions, specifically Whisper and configured OpenAI model."""
 
-    def __init__(self, api_key: str, timeout: int = 60):
+    def __init__(self, api_key: str, model_name: str = "gpt-5-nano", timeout: int = 60):
         """Initialize OpenAI client with API key and timeout settings.
 
         Args:
             api_key: OpenAI API key
+            model_name: OpenAI model name to use
             timeout: Request timeout in seconds
         """
         self.api_key = api_key
+        self.model_name = model_name
         self.timeout = timeout
         self.base_url = "https://api.openai.com/v1"
         self._session: Optional[aiohttp.ClientSession] = None
@@ -151,7 +153,7 @@ class OpenAIClient:
             raise
 
     async def improve_text(self, text: str, prompt: str = None) -> Dict:
-        """Improve transcription quality using GPT-4o-mini.
+        """Improve transcription quality using OPENAI_MODEL.
 
         Args:
             text: Original transcribed text to improve
@@ -180,7 +182,7 @@ class OpenAIClient:
             )
 
         payload = {
-            "model": "gpt-4o-mini",
+            "model": self.model_name,
             "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}],
             "temperature": 0.1,
             "max_tokens": 2000,
@@ -190,9 +192,9 @@ class OpenAIClient:
 
         # Enhanced request logging
         logger.info(
-            "Sending GPT-4o-mini text improvement request",
+            "Sending OpenAI text improvement request",
             url=url,
-            model="gpt-4o-mini",
+            model=self.model_name,
             original_text_length=len(text),
             original_word_count=len(text.split()),
             system_prompt_length=len(prompt),
@@ -209,7 +211,7 @@ class OpenAIClient:
 
                 # Log response details
                 logger.info(
-                    "GPT-4o-mini API response received",
+                    "OpenAI API response received",
                     status_code=response.status,
                     request_time_seconds=round(request_time, 2),
                     response_size_bytes=len(str(response_data)),
@@ -224,7 +226,7 @@ class OpenAIClient:
                     error_code = error_info.get("code", "unknown")
 
                     logger.error(
-                        "GPT-4o-mini API error response",
+                        "OpenAI API error response",
                         status_code=response.status,
                         error_message=error_msg,
                         error_type=error_type,
@@ -233,17 +235,17 @@ class OpenAIClient:
                         original_text_length=len(text),
                         full_error_response=error_info,
                     )
-                    raise ValueError(f"GPT-4o-mini API error: {error_msg}")
+                    raise ValueError(f"OpenAI API error: {error_msg}")
 
                 # Extract improved text and usage information
                 improved_text = response_data["choices"][0]["message"]["content"]
                 usage = response_data.get("usage", {})
-                model_used = response_data.get("model", "gpt-4o-mini")
+                model_used = response_data.get("model", self.model_name)
                 finish_reason = response_data["choices"][0].get("finish_reason")
 
                 # Enhanced success logging with comprehensive API response details
                 logger.info(
-                    "GPT-4o-mini text improvement completed successfully",
+                    "OpenAI text improvement completed successfully",
                     model_used=model_used,
                     request_time_seconds=round(request_time, 2),
                     finish_reason=finish_reason,
@@ -267,7 +269,7 @@ class OpenAIClient:
         except aiohttp.ClientError as e:
             request_time = time.time() - request_start_time
             logger.error(
-                "HTTP error during GPT-4o-mini text improvement",
+                "HTTP error during OpenAI text improvement",
                 url=url,
                 request_time_seconds=round(request_time, 2),
                 original_text_length=len(text),
@@ -279,7 +281,7 @@ class OpenAIClient:
         except Exception as e:
             request_time = time.time() - request_start_time
             logger.error(
-                "Unexpected error during GPT-4o-mini text improvement",
+                "Unexpected error during OpenAI text improvement",
                 url=url,
                 request_time_seconds=round(request_time, 2),
                 original_text_length=len(text),

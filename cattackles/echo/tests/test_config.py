@@ -50,7 +50,7 @@ class TestEchoCattackleSettings:
         """Test that default values are applied correctly."""
         settings = EchoCattackleSettings(openai_api_key=test_openai_api_key, gemini_api_key=None)
 
-        assert settings.openai_model == "gpt-4o-mini"
+        assert settings.openai_model == "gpt-5-nano"
         assert settings.gemini_model == "gemini-2.5-flash-lite-preview-06-17"
         assert settings.mcp_server_port == 8001
         assert settings.log_level == "INFO"
@@ -93,7 +93,7 @@ class TestEchoCattackleSettings:
         """Test creating settings from environment with only OpenAI."""
         env_vars = {
             "OPENAI_API_KEY": "env-openai-key",
-            "OPENAI_MODEL": "gpt-4",
+            "OPENAI_MODEL": "gpt-5-nano",
             "MCP_SERVER_PORT": "8002",
             "LOG_LEVEL": "DEBUG",
         }
@@ -102,7 +102,7 @@ class TestEchoCattackleSettings:
             settings = EchoCattackleSettings.from_environment()
 
             assert settings.openai_api_key == "env-openai-key"
-            assert settings.openai_model == "gpt-4"
+            assert settings.openai_model == "gpt-5-nano"
             assert settings.gemini_api_key is None
             assert settings.mcp_server_port == 8002
             assert settings.log_level == "DEBUG"
@@ -129,7 +129,7 @@ class TestEchoCattackleSettings:
         """Test creating settings from environment with both APIs."""
         env_vars = {
             "OPENAI_API_KEY": "env-openai-key",
-            "OPENAI_MODEL": "gpt-4",
+            "OPENAI_MODEL": "gpt-5-nano",
             "GEMINI_API_KEY": "env-gemini-key",
             "GEMINI_MODEL": "gemini-1.5-pro",
         }
@@ -138,7 +138,7 @@ class TestEchoCattackleSettings:
             settings = EchoCattackleSettings.from_environment()
 
             assert settings.openai_api_key == "env-openai-key"
-            assert settings.openai_model == "gpt-4"
+            assert settings.openai_model == "gpt-5-nano"
             assert settings.gemini_api_key == "env-gemini-key"
             assert settings.gemini_model == "gemini-1.5-pro"
 
@@ -150,7 +150,7 @@ class TestEchoCattackleSettings:
             settings = EchoCattackleSettings.from_environment()
 
             assert settings.openai_api_key == "env-openai-key"
-            assert settings.openai_model == "gpt-4o-mini"  # default
+            assert settings.openai_model == "gpt-5-nano"  # default
             assert settings.gemini_api_key is None
             assert settings.gemini_model == "gemini-2.5-flash-lite-preview-06-17"  # default
             assert settings.mcp_server_port == 8001  # default
@@ -180,7 +180,7 @@ class TestEchoCattackleSettings:
         assert "Log level: INFO" in caplog.text
         assert "MCP server port: 8001" in caplog.text
         assert "OpenAI API key: ✓ Configured" in caplog.text
-        assert "OpenAI model: gpt-4o-mini" in caplog.text
+        assert "OpenAI model: gpt-5-nano" in caplog.text
         assert "Gemini API key: ✗ Not configured" in caplog.text
         assert "OpenAI API configured as primary" in caplog.text
 

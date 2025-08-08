@@ -1,6 +1,6 @@
 # Echo Cattackle
 
-A demonstration cattackle that echoes text and generates AI-powered jokes using OpenAI GPT-4o-mini (with Gemini as fallback). This cattackle showcases **message accumulation** functionality and serves as a reference implementation for new cattackles.
+A demonstration cattackle that echoes text and generates AI-powered jokes using OpenAI models (with Gemini as fallback). This cattackle showcases **message accumulation** functionality and serves as a reference implementation for new cattackles.
 
 ## Features
 
@@ -156,7 +156,7 @@ All environment variables should be configured in the root `.env` file:
 **AI Model Configuration (at least one required for joke functionality):**
 
 - `OPENAI_API_KEY`: Your OpenAI API key (primary model for jokes)
-- `OPENAI_MODEL`: OpenAI model to use (default: gpt-4o-mini)
+- `OPENAI_MODEL`: OpenAI model to use (default: gpt-5-nano)
 - `GEMINI_API_KEY`: Your Google Gemini API key (fallback model for jokes)
 - `GEMINI_MODEL`: Gemini model to use (default: gemini-2.5-flash-lite-preview-06-17)
 
@@ -206,7 +206,7 @@ User: /echo_echo
 Bot: Task 1: Buy groceries; Task 2: Walk the dog; Task 3: Call mom
 ```
 
-Note: The joke command requires either OPENAI_API_KEY or GEMINI_API_KEY to be configured in the .env file. OpenAI (GPT-4o-mini) is used as the primary model, with Gemini as fallback.
+Note: The joke command requires either OPENAI_API_KEY or GEMINI_API_KEY to be configured in the .env file. OpenAI is used as the primary model, with Gemini as fallback.
 
 ## Related Documentation
 

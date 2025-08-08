@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class OpenAIClient:
     """Client for interacting with OpenAI API."""
 
-    def __init__(self, api_key: str, model_name: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model_name: str = None):
         """
         Initialize the OpenAI client.
 

@@ -150,7 +150,7 @@ The cost analysis system tracks audio processing expenses with detailed breakdow
 
 - Total requests and audio duration
 - Whisper API costs (transcription)
-- GPT-4o-mini costs (processing)
+- OpenAI model costs (processing)
 - User-specific breakdowns
 - API usage analysis
 - Efficiency metrics
@@ -167,7 +167,7 @@ Average Processing Time: 3.2 seconds
 
 💰 Cost Breakdown:
   Whisper API: $0.2712
-  GPT-4o-mini: $0.0890
+  OpenAI Model: $0.0890
   Total Cost:  $0.3602
 
 👥 User Breakdown (5 users)

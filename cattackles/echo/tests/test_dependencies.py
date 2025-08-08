@@ -22,7 +22,7 @@ class TestDependencies:
             result = create_openai_client(settings_with_openai_only)
 
             assert result == mock_client
-            mock_client_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-4o-mini")
+            mock_client_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-5-nano")
 
     def test_create_openai_client_without_api_key(self, settings_with_gemini_only):
         """Test creating OpenAI client when API key is not available."""
@@ -59,7 +59,7 @@ class TestDependencies:
             result = create_echo_cattackle(settings_with_openai_only)
 
             assert result == mock_cattackle
-            mock_openai_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-4o-mini")
+            mock_openai_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-5-nano")
             mock_cattackle_class.assert_called_once_with(openai_client=mock_openai_client, gemini_client=None)
 
     def test_create_echo_cattackle_with_gemini_only(self, settings_with_gemini_only):
@@ -93,7 +93,7 @@ class TestDependencies:
             result = create_echo_cattackle(settings_with_both_apis)
 
             assert result == mock_cattackle
-            mock_openai_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-4o-mini")
+            mock_openai_class.assert_called_once_with(api_key="test-openai-api-key", model_name="gpt-5-nano")
             mock_gemini_class.assert_called_once_with(api_key="test-gemini-api-key", model_name="gemini-pro")
             mock_cattackle_class.assert_called_once_with(
                 openai_client=mock_openai_client, gemini_client=mock_gemini_client
@@ -117,7 +117,7 @@ class TestDependencies:
             assert isinstance(result, EchoCattackle)
             assert isinstance(result.openai_client, OpenAIClient)
             assert result.openai_client.api_key == "test-openai-api-key"
-            assert result.openai_client.model_name == "gpt-4o-mini"
+            assert result.openai_client.model_name == "gpt-5-nano"
             assert result.gemini_client is None
 
     def test_integration_create_echo_cattackle_with_gemini(self, settings_with_gemini_only):

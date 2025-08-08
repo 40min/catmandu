@@ -79,8 +79,8 @@ class TestSettings:
             assert settings.max_audio_file_size_mb == 25
             assert settings.max_audio_duration_minutes == 10
             assert settings.whisper_cost_per_minute == 0.006
-            assert settings.gpt4o_mini_input_cost_per_1m_tokens == 0.15
-            assert settings.gpt4o_mini_output_cost_per_1m_tokens == 0.60
+            assert settings.openai_gpt_nano_input_cost_per_1m_tokens == 0.15
+            assert settings.openai_gpt_nano_output_cost_per_1m_tokens == 0.60
             assert settings.cost_logs_dir == "logs/costs"
 
     def test_openai_custom_settings_from_env(self):
@@ -94,8 +94,8 @@ class TestSettings:
                 "MAX_AUDIO_FILE_SIZE_MB": "50",
                 "MAX_AUDIO_DURATION_MINUTES": "15",
                 "WHISPER_COST_PER_MINUTE": "0.008",
-                "GPT4O_MINI_INPUT_COST_PER_1M_TOKENS": "0.20",
-                "GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS": "0.80",
+                "OPENAI_GPT_NANO_INPUT_COST_PER_1M_TOKENS": "0.20",
+                "OPENAI_GPT_NANO_OUTPUT_COST_PER_1M_TOKENS": "0.80",
                 "COST_LOGS_DIR": "custom/costs",
             },
         ):
@@ -106,8 +106,8 @@ class TestSettings:
             assert settings.max_audio_file_size_mb == 50
             assert settings.max_audio_duration_minutes == 15
             assert settings.whisper_cost_per_minute == 0.008
-            assert settings.gpt4o_mini_input_cost_per_1m_tokens == 0.20
-            assert settings.gpt4o_mini_output_cost_per_1m_tokens == 0.80
+            assert settings.openai_gpt_nano_input_cost_per_1m_tokens == 0.20
+            assert settings.openai_gpt_nano_output_cost_per_1m_tokens == 0.80
             assert settings.cost_logs_dir == "custom/costs"
 
     def test_openai_api_key_validation_valid(self):
@@ -362,12 +362,12 @@ class TestSettings:
             os.environ,
             {
                 "TELEGRAM_BOT_TOKEN": "dummy_token",
-                "GPT4O_MINI_INPUT_COST_PER_1M_TOKENS": "-0.01",
+                "OPENAI_GPT_NANO_INPUT_COST_PER_1M_TOKENS": "-0.01",
             },
         ):
             with pytest.raises(ValidationError) as exc_info:
                 Settings()
-            assert "GPT4O_MINI_INPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)
+            assert "OPENAI_GPT_NANO_INPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)
 
     def test_cost_validation_negative_gpt_output_cost(self):
         """Test that negative GPT output cost is rejected."""
@@ -375,9 +375,9 @@ class TestSettings:
             os.environ,
             {
                 "TELEGRAM_BOT_TOKEN": "dummy_token",
-                "GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS": "-0.01",
+                "OPENAI_GPT_NANO_OUTPUT_COST_PER_1M_TOKENS": "-0.01",
             },
         ):
             with pytest.raises(ValidationError) as exc_info:
                 Settings()
-            assert "GPT4O_MINI_OUTPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)
+            assert "OPENAI_GPT_NANO_OUTPUT_COST_PER_1M_TOKENS must be non-negative" in str(exc_info.value)

@@ -108,7 +108,7 @@ class AudioProcessor:
         if self._openai_client is None:
             if not self.settings.openai_api_key:
                 raise AudioProcessingError("OpenAI API key not configured")
-            self._openai_client = OpenAIClient(self.settings.openai_api_key)
+            self._openai_client = OpenAIClient(self.settings.openai_api_key, self.settings.openai_model)
         return self._openai_client
 
     def _extract_audio_file_info(self, message: Dict) -> Tuple[AudioFileInfo, str]:
@@ -323,7 +323,7 @@ class AudioProcessor:
             raise TranscriptionError(f"Transcription failed: {str(e)}")
 
     async def _improve_transcription(self, text: str) -> Tuple[str, Dict]:
-        """Improve transcription quality using GPT-4o-mini.
+        """Improve transcription quality using configured OpenAI model.
 
         Args:
             text: Original transcribed text
@@ -339,7 +339,7 @@ class AudioProcessor:
         try:
             openai_client = await self._get_openai_client()
 
-            # Call GPT-4o-mini for text improvement
+            # Call OpenAI model for text improvement
             response = await openai_client.improve_text(text)
             improvement_time = time.time() - improvement_start_time
 
@@ -397,7 +397,7 @@ class AudioProcessor:
 
         Args:
             original_text: Original transcription from Whisper
-            improved_text: Improved text from GPT-4o-mini
+            improved_text: Improved text from OpenAI model
 
         Returns:
             True if quality warning should be shown to user

@@ -47,8 +47,12 @@ def main():
                     print(f"   - Max file size: {settings.max_audio_file_size_mb}MB")
                     print(f"   - Max duration: {settings.max_audio_duration_minutes} minutes")
                     print(f"   - Whisper cost: ${settings.whisper_cost_per_minute:.4f}/minute")
-                    print(f"   - GPT-4o-mini input: ${settings.gpt4o_mini_input_cost_per_1m_tokens:.2f}/1M tokens")
-                    print(f"   - GPT-4o-mini output: ${settings.gpt4o_mini_output_cost_per_1m_tokens:.2f}/1M tokens")
+                    print(
+                        f"   - OpenAI model input: ${settings.openai_gpt_nano_input_cost_per_1m_tokens:.2f}/1M tokens"
+                    )
+                    print(
+                        f"   - OpenAI model output: ${settings.openai_gpt_nano_output_cost_per_1m_tokens:.2f}/1M tokens"
+                    )
                 else:
                     print("⚠️  Audio processing is enabled but not properly configured")
             except AudioProcessingConfigurationError as e:

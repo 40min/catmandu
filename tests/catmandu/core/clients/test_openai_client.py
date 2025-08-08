@@ -12,7 +12,7 @@ class TestOpenAIClient:
     @pytest.fixture
     def client(self):
         """Create OpenAI client for testing."""
-        return OpenAIClient(api_key="sk-test-key", timeout=30)
+        return OpenAIClient(api_key="sk-test-key", model_name="gpt-5-nano", timeout=30)
 
     @pytest.fixture
     def mock_session(self):
@@ -23,8 +23,9 @@ class TestOpenAIClient:
 
     def test_init(self):
         """Test client initialization."""
-        client = OpenAIClient(api_key="sk-test-key", timeout=60)
+        client = OpenAIClient(api_key="sk-test-key", model_name="gpt-5-nano", timeout=60)
         assert client.api_key == "sk-test-key"
+        assert client.model_name == "gpt-5-nano"
         assert client.timeout == 60
         assert client.base_url == "https://api.openai.com/v1"
         assert client._session is None
@@ -113,7 +114,7 @@ class TestOpenAIClient:
         assert result["text"] == "Hello, world! This is improved text."
         assert result["usage"]["prompt_tokens"] == 50
         assert result["usage"]["completion_tokens"] == 20
-        assert result["model"] == "gpt-4o-mini"
+        assert result["model"] == "gpt-5-nano"
 
         mock_session.post.assert_called_once()
 
@@ -121,7 +122,7 @@ class TestOpenAIClient:
         call_args = mock_session.post.call_args
         assert call_args[0][0] == "https://api.openai.com/v1/chat/completions"
         payload = call_args.kwargs["json"]
-        assert payload["model"] == "gpt-4o-mini"
+        assert payload["model"] == "gpt-5-nano"
         assert payload["messages"][1]["content"] == "hello world this is text"
 
     @pytest.mark.asyncio
@@ -165,7 +166,7 @@ class TestOpenAIClient:
 
         client._get_session = AsyncMock(return_value=mock_session)
 
-        with pytest.raises(ValueError, match="GPT-4o-mini API error: Rate limit exceeded"):
+        with pytest.raises(ValueError, match="OpenAI API error: Rate limit exceeded"):
             await client.improve_text("test text")
 
     @pytest.mark.asyncio

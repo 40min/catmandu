@@ -27,8 +27,8 @@ def settings():
         max_audio_file_size_mb=25,
         max_audio_duration_minutes=10,
         whisper_cost_per_minute=0.006,
-        gpt4o_mini_input_cost_per_1m_tokens=0.15,
-        gpt4o_mini_output_cost_per_1m_tokens=0.60,
+        openai_gpt_nano_input_cost_per_1m_tokens=0.05,
+        openai_gpt_nano_output_cost_per_1m_tokens=0.40,
     )
 
 
