@@ -51,7 +51,7 @@ class OpenAIClient:
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
+                max_completion_tokens=150,
                 temperature=0.8,
             )
 
