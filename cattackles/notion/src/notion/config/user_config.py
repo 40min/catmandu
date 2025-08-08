@@ -61,15 +61,6 @@ def _parse_user_configs() -> Dict[str, Dict[str, str]]:
             user_configs[username]["parent_page_id"] = value.strip()
 
     # Log discovered users (without sensitive data)
-    if user_configs:
-        usernames = list(user_configs.keys())
-        logger.info(
-            "Loaded Notion user configurations from environment variables",
-            user_count=len(usernames),
-            usernames=usernames,
-        )
-    else:
-        logger.info("No Notion user configurations found in environment variables")
 
     return user_configs
 
@@ -154,4 +145,3 @@ def reload_user_configs() -> None:
     """
     global _user_configs_cache
     _user_configs_cache = None
-    logger.info("User configurations cache cleared, will reload from environment on next access")

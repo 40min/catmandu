@@ -120,16 +120,6 @@ def validate_environment() -> bool:
         # Validate that we can configure logging
         configure_logging(settings)
 
-        # Log successful validation
-        logger = structlog.get_logger(__name__)
-        logger.info(
-            "Environment validation successful",
-            host=settings.host,
-            port=settings.port,
-            log_level=settings.log_level,
-            log_format=settings.log_format,
-        )
-
         return True
 
     except Exception as e:

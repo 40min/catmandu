@@ -76,8 +76,6 @@ def create_starlette_app(mcp_server: Server, cattackle: NotionCattackle, json_re
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
         """Context manager for session manager and persistent client instances."""
         async with session_manager.run():
-            logger.info("Notion cattackle MCP server started with StreamableHTTP!")
-
             # Initialize persistent NotionClientWrapper instances for each user
             # This ensures cache persistence across requests
             user_configs = get_all_user_configs()
@@ -87,16 +85,13 @@ def create_starlette_app(mcp_server: Server, cattackle: NotionCattackle, json_re
                 token = config.get("token")
                 if token:
                     client_instances[username] = NotionClientWrapper(token)
-                    logger.info("Initialized persistent Notion client", username=username)
 
             # Store client instances in the cattackle for reuse
             cattackle._client_instances = client_instances
-            logger.info("Initialized persistent Notion clients", client_count=len(client_instances))
 
             try:
                 yield
             finally:
-                logger.info("Notion cattackle MCP server shutting down...")
                 # Clean up client instances
                 if hasattr(cattackle, "_client_instances"):
                     del cattackle._client_instances

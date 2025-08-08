@@ -29,7 +29,6 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
 
     Requirements: 1.1, 1.4, 4.1, 4.2, 4.3
     """
-    logger.info("Processing request of type CallToolRequest", tool_name=name, arguments=arguments)
 
     try:
         # Route to appropriate method based on tool name
@@ -42,13 +41,6 @@ async def handle_tool_call(cattackle: NotionCattackle, name: str, arguments: dic
         # Format successful response with proper JSON structure
         response_json = {"data": response_data, "error": ""}
         response_text = json.dumps(response_json, ensure_ascii=False)
-
-        logger.info(
-            "Tool call completed successfully",
-            tool_name=name,
-            response_length=len(response_data),
-            response_json=response_text,
-        )
 
         return [
             types.TextContent(
@@ -117,7 +109,6 @@ async def _handle_note(cattackle: NotionCattackle, arguments: Dict[str, Any]) ->
 
     Requirements: 1.1, 1.4
     """
-    logger.debug("Notion cattackle received", arguments=arguments)
 
     # Extract required parameters
     text = arguments.get("text", "")

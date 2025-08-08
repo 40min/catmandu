@@ -51,12 +51,6 @@ class NotionCattackle:
 
         Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 6.1, 6.2
         """
-        self.logger.info(
-            "Processing save_to_notion request",
-            username=username,
-            content_length=len(message_content),
-            has_accumulated_params=accumulated_params is not None,
-        )
 
         # Check if user is authorized (silent skip if not configured)
         if not is_user_authorized(username):
@@ -90,13 +84,6 @@ class NotionCattackle:
 
             # Append message to the page
             await self._append_message_to_page(notion_client, page_id, content_to_append)
-
-            self.logger.info(
-                "Successfully saved message to Notion",
-                username=username,
-                page_id=page_id,
-                content_length=len(content_to_append),
-            )
 
             return f"✅ Message saved to Notion page for {today_date}"
 
@@ -135,11 +122,9 @@ class NotionCattackle:
         """
         # Try to get existing client instance first
         if username in self._client_instances:
-            self.logger.debug("Using existing persistent client", username=username)
             return self._client_instances[username]
 
         # Create new client instance if not found (fallback for edge cases)
-        self.logger.info("Creating new client instance", username=username)
         client = NotionClientWrapper(token)
         self._client_instances[username] = client
         return client
@@ -174,24 +159,15 @@ class NotionCattackle:
                 existing_page_id = await notion_client.find_page_by_title(parent_page_id, date_str)
 
                 if existing_page_id:
-                    self.logger.info(
-                        "Found existing daily page", page_id=existing_page_id, date=date_str, attempt=attempt + 1
-                    )
                     return existing_page_id
 
                 # Page doesn't exist, create a new one
-                self.logger.info(
-                    "Creating new daily page", parent_page_id=parent_page_id, date=date_str, attempt=attempt + 1
-                )
                 page_id = await notion_client.create_page(parent_page_id, date_str)
-
-                self.logger.info("Successfully created daily page", page_id=page_id, date=date_str)
                 return page_id
 
             except APIResponseError as e:
                 # If we get a conflict error (page already exists), retry the search
                 if getattr(e, "status", None) == 409 and attempt < max_retries:
-                    self.logger.info("Page creation conflict, retrying search", date=date_str, attempt=attempt + 1)
                     continue
 
                 # Handle other specific Notion API errors with user-friendly messages
