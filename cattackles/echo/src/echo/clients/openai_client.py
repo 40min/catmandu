@@ -55,8 +55,8 @@ class OpenAIClient:
             )
 
             content = response.choices[0].message.content
-            if content is None:
-                raise RuntimeError("OpenAI returned empty content")
+            if content is None or not content.strip():
+                return "😴 The joker is sleeping... try again later!"
 
             return content.strip()
         except Exception as e:

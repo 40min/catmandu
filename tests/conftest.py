@@ -122,6 +122,7 @@ def setup_test_environment():
     """Set up required environment variables for all tests."""
     test_env = {
         "TELEGRAM_BOT_TOKEN": "test_bot_token_123",
+        "OPENAI_API_KEY": "sk-test_key_for_testing_purposes_only",
         "GEMINI_API_KEY": "test_gemini_api_key",
         "GEMINI_MODEL": "gemini-2.5-flash-lite-preview-06-17",
     }

@@ -50,7 +50,12 @@ class GeminiClient:
 
         try:
             response = self.model.generate_content(prompt)
-            return response.text.strip()
+            content = response.text.strip() if response.text else ""
+
+            if not content:
+                return "😴 The joker is sleeping... try again later!"
+
+            return content
         except Exception as e:
             logger.error(f"Error generating content with Gemini: {e}")
             raise RuntimeError(f"Failed to generate content: {str(e)}") from e

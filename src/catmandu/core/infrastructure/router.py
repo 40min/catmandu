@@ -149,6 +149,10 @@ class MessageRouter:
 
             response_text = str(response.data)
 
+            # Handle empty responses to prevent Telegram API errors
+            if not response_text.strip():
+                response_text = "🤖 The command completed but returned no output."
+
             # Log successful command safely
             self._logging_service.log_chat_interaction_safely(
                 chat_id=chat_id,
